@@ -33,6 +33,8 @@ app.use(morgan('tiny'));
 
 
 require('./app/routes/user')(app)
+require('./app/routes/productCategory')(app)
+
 
 
 

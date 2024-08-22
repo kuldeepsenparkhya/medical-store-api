@@ -5,6 +5,9 @@ mongoose.connect(`${DB_URI}`).then(() => console.log('Db connection done')).catc
 
 const db = {
     User: require('./user'),
+    ProductCategory: require('./category'),
+    Product: require('./product'),
+
 
 }
 
