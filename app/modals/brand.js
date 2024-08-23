@@ -10,6 +10,9 @@ const brandSchema = Schema({
   description: {
     type: String,
   },
+  brand_logo: {
+    type: String,
+  },
 },
   {
     timestamps: true

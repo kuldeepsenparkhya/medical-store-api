@@ -1,8 +1,7 @@
 const Joi = require("joi")
 
 const registerUser = Joi.object().keys({
-    first_name: Joi.string().required(),
-    last_name: Joi.string(),
+    name: Joi.string().required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).max(32).required(),
     mobile: Joi.string().min(10).max(13),
@@ -10,8 +9,7 @@ const registerUser = Joi.object().keys({
 })
 
 const updateUser = Joi.object().keys({
-    first_name: Joi.string(),
-    last_name: Joi.string(),
+    name: Joi.string(),
     email: Joi.string().email(),
     mobile: Joi.string().min(10).max(13),
 
@@ -19,7 +17,7 @@ const updateUser = Joi.object().keys({
 
 
 const loginUser = Joi.object().keys({
-    userName: Joi.string().required(),
+    email: Joi.string().email().required(),
     password: Joi.string().min(8).max(32).required(),
 
 })
@@ -30,8 +28,8 @@ const resetUserPassword = Joi.object().keys({
 
 const updateUserPassword = Joi.object().keys({
     token: Joi.string().required(),
-    newPassword: Joi.string().required(),
-    confirmPassword: Joi.string().required(),
+    new_password: Joi.string().required(),
+    confirm_password: Joi.string().required(),
 })
 
 module.exports = {

@@ -8,7 +8,7 @@ const { registerUser, updateUser } = require("./joiValidator/userJoiSchema")
 
 exports.create = async (req, res) => {
     try {
-        const { first_name, last_name, email, password, mobile, role } = req.body
+        const { name, email, password, mobile, role } = req.body
         const { error } = registerUser.validate(req.body, { abortEarly: false })
 
         if (error) {
@@ -16,7 +16,7 @@ exports.create = async (req, res) => {
             return
         }
 
-        const data = { first_name, last_name, email, password, mobile, role };
+        const data = { name, email, password, mobile, role };
         const token = jwt.sign({ data }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN });
 
         const newUser = new User(data);
@@ -74,7 +74,7 @@ exports.findOne = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const {first_name, last_name, email, mobile} = req.body
+        const { name, email, mobile } = req.body
         const { id } = req.params;
 
         const { error } = updateUser.validate(req.body, { abortEarly: false })
@@ -85,14 +85,13 @@ exports.update = async (req, res) => {
         }
 
 
-        const data = { first_name, last_name, email, mobile }
+        const data = { name, email, mobile }
         await User.updateOne({ _id: id }, data, { new: true })
         res.status(200).send({ message: "User has been successfully update.", error: false })
     } catch (error) {
         handleError(error.message, 400, res)
     };
 };
-
 
 exports.delete = async (req, res) => {
     try {

@@ -1,11 +1,11 @@
 const { ProductCategory } = require("../modals");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { createProductCategory } = require("./joiValidator/productCategoryJoi.Schema");
+const { createProductCategory, updateProductCategory } = require("./joiValidator/brandJoi.Schema");
 
 
 exports.create = async (req, res) => {
     try {
-        const { name, description,} = req.body
+        const { name, description, } = req.body
         const { error } = createProductCategory.validate(req.body, { abortEarly: false })
 
         if (error) {
@@ -13,12 +13,12 @@ exports.create = async (req, res) => {
             return
         }
 
-        const data = { name, description,}
+        const data = { name, description, }
         const newCategory = new ProductCategory(data);
 
         await newCategory.save();
 
-        handleResponse(res, newCategory, 201)
+        handleResponse(res, newCategory._doc, 201)
 
     } catch (error) {
         if (error.code === 11000) {
@@ -28,7 +28,6 @@ exports.create = async (req, res) => {
         handleError(error.message, 400, res)
     };
 };
-
 
 exports.find = async (req, res) => {
     try {
@@ -57,29 +56,48 @@ exports.find = async (req, res) => {
 exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
-        const user = await User.findOne({ _id: id })
-        handleResponse(res, user, 200)
+
+        const category = await ProductCategory.findOne({ _id: id })
+
+        if (!category) {
+            handleError('Invailid category ID.', 400, res)
+            return
+        }
+
+
+        const productCategory = await ProductCategory.findOne({ _id: category._id })
+        handleResponse(res, productCategory._doc, 200)
     } catch (error) {
         handleError(error.message, 400, res)
     };
 };
 
+
 exports.update = async (req, res) => {
     try {
-        const {first_name, last_name, email, mobile} = req.body
+        const { name, description } = req.body
         const { id } = req.params;
 
-        const { error } = updateUser.validate(req.body, { abortEarly: false })
+        const { error } = updateProductCategory.validate(req.body, { abortEarly: false })
 
         if (error) {
             handleError(error, 400, res)
             return
         }
 
+        const category = await ProductCategory.findOne({ _id: id })
 
-        const data = { first_name, last_name, email, mobile }
-        await User.updateOne({ _id: id }, data, { new: true })
-        res.status(200).send({ message: "User has been successfully update.", error: false })
+        if (!category) {
+            handleError('Invailid category ID.', 400, res)
+            return
+        }
+
+        const data = { name, description }
+
+        await ProductCategory.updateOne({ _id: category._id }, data, { new: true })
+
+        res.status(200).send({ message: "Category has been successfully update.", error: false })
+
     } catch (error) {
         handleError(error.message, 400, res)
     };
@@ -89,34 +107,20 @@ exports.update = async (req, res) => {
 exports.delete = async (req, res) => {
     try {
         const { id } = req.params;
-        if (req.user._id === id || req.user.role === 'admin') {
-            const user = await User.findOne({ _id: id })
 
-            if (!user) {
-                handleError('Invailid user.', 400, res)
-                return
-            }
+        const category = await ProductCategory.findOne({ _id: id })
 
-            await User.deleteOne({ _id: user._id })
-
-            handleResponse(res, 'User successfully removed.', 200)
-        }
-        else {
-            handleError('User can delete self account or admin can delete user account.', 400, res)
+        if (!category) {
+            handleError('Invailid category ID.', 400, res)
             return
         }
-    } catch (error) {
+
+        await ProductCategory.deleteOne({ _id: category._id })
+
+        handleResponse(res, { message: 'ProductCategory successfully removed.' }, 'ProductCategory successfully removed.', 200)
+    }
+    catch (error) {
         handleError(error.message, 400, res)
     };
 };
 
-exports.getTotalUsers = async (req, res) => {
-    try {
-        const users = await User.find()
-        const getuAllUsers = users.filter((user) => user.role !== 'admin');
-        getuAllUsers?.length
-        res.send(getuAllUsers)
-    } catch (error) {
-        res.send(error)
-    }
-};

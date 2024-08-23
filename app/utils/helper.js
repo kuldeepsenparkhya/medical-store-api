@@ -3,7 +3,12 @@ const nodemailer = require('nodemailer');
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
 
 
-exports.handleResponse = (res, data, status = 200) => res.status(status).json(data);
+exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({
+    ...data,
+    error: false,
+    message: message
+
+});
 
 exports.handleError = (error, status = 400, res,) => {
     if (error.details) {
@@ -16,11 +21,10 @@ exports.handleError = (error, status = 400, res,) => {
     }
 
     return res.status(status).send({ message: error, error: true, })
-
 }
 
 exports.getPagination = async (query, fetchedData, totalCount) => {
-    const { page = 1, limit = 10, sort = 1,} = query;
+    const { page = 1, limit = 10, sort = 1, } = query;
 
     let paginatedData;
     let totalItems;
@@ -51,34 +55,32 @@ exports.getPagination = async (query, fetchedData, totalCount) => {
     return paginationInfo;
 }
 
+// Utility function to send an email
 exports.sendMailer = async (email, subject, message, res) => {
-
     const transporter = nodemailer.createTransport({
-        host: `${SMPT_EMAIL_HOST}`,
-        port: `${SMPT_EMAIL_PORT}`,
+        host: SMPT_EMAIL_HOST,
+        port: SMPT_EMAIL_PORT,
         auth: {
-            user: `${SMPT_EMAIL_USER}`,
-            pass: `${SMPT_EMAIL_PASSWORD}`
+            user: SMPT_EMAIL_USER,
+            pass: SMPT_EMAIL_PASSWORD
         },
-        secure: false
-    })
+        secure: true
+    });
 
-    const data = {
-        from: `${SMPT_EMAIL_FROM}`,
-        to: `${email}`,
+    const mailOptions = {
+        from: SMPT_EMAIL_FROM,
+        to: email,
         subject: `${subject} - Food donation NGO`,
-        html: `${message}`,
+        html: message
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error('Email sending error:', error);
+        res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
     }
-
-    transporter.sendMail(data, (error, info) => {
-        if (error) {
-            console.log('error>>>>>>', error);
-            res.status(error.responseCode).send(error)
-        }
-    })
-
-    return
-}
+};
 
 exports.createUUID = () => {
     var dt = new Date().getTime()

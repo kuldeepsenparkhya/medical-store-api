@@ -28,12 +28,19 @@ app.use(cors({
 app.use(bodyParser.json())
 app.use(morgan('tiny'));
 
-// app.use(authJWT)
+
+require('./app/routes/media')(app)
+require('./app/routes/product')(app)
+app.use(authJWT)
 
 
+require('./app/routes/auth/auth')(app)
 
 require('./app/routes/user')(app)
+require('./app/routes/brand')(app)
 require('./app/routes/productCategory')(app)
+
+
 
 
 

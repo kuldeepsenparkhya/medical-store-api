@@ -35,8 +35,32 @@ exports.fileUploader = (req, res, next) => {
     limits: { fileSize: 1024 * 1024 * 1024 * 5 },
     fileFilter: fileFilter,
   });
-  
-  console.log('req.body>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', req.body); // Log request body
 
-  upload.single("pic")(req, res, next);
+  upload.single("file")(req, res, next);
+};
+
+
+
+exports.filesUploader = (req, res, next) => {
+  const BASE_PATH = path.join(__dirname, "../upload");
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, BASE_PATH);
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + file.originalname);
+    },
+  });
+
+  const fileFilter = (req, file, cb) => {
+    cb(null, true);
+  }
+
+  const upload = multer({
+    storage: storage,
+    limits: { fileSize: 1024 * 1024 * 1024 * 5 },
+    fileFilter: fileFilter,
+  });
+
+  upload.array("files")(req, res, next);
 };
