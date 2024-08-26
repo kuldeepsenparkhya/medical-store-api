@@ -2,19 +2,6 @@ const mongoose = require("mongoose")
 const { Schema } = mongoose
 
 
-
-const mediaSchema = new Schema({
-  url: {
-    type: String,
-  },
-  mimetype: {
-    type: String,
-  },
-
-}, { _id: false });
-
-
-
 const productSchema = Schema({
   title: {
     type: String,
@@ -24,13 +11,12 @@ const productSchema = Schema({
     type: String,
     required: true,
   },
-  sku: String, // Stock Keeping Unit
   price: {
     type: Number,
     required: true,
   },
   discounted_price: {
-    type: String,
+    type: Number,
     required: true,
   },
   quantity: {
@@ -56,7 +42,6 @@ const productSchema = Schema({
     ref: 'Brand',
     required: true
   },
-  media: [mediaSchema],
   expiry_date: {
     type: Date,
     required: true,
@@ -73,10 +58,9 @@ const productSchema = Schema({
     type: [String],
     default: [],
   },
-
-  attributes: {
-    type: Map,
-    of: String // Key-value pairs for various attributes (e.g., color, size)
+  isDeleted: {
+    type: Boolean,
+    default: false,
   },
 },
   {

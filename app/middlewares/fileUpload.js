@@ -14,19 +14,8 @@ exports.fileUploader = (req, res, next) => {
   });
 
   const fileFilter = (req, file, cb) => {
-    if (
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/png" ||
-      file.mimetype === "application/pdf" ||
-      file.mimetype === "video/mp4" ||
-      file.mimetype === "video/webm" ||
-      file.mimetype === "audio/mpeg" ||
-      file.mimetype === "audio/mp3" ||
-      file.mimetype === "audio/wav"
-    ) {
+    {
       cb(null, true);
-    } else {
-      cb(null, false);
     }
   };
 
@@ -36,7 +25,7 @@ exports.fileUploader = (req, res, next) => {
     fileFilter: fileFilter,
   });
 
-  upload.single("file")(req, res, next);
+  upload.single("files")(req, res, next);
 };
 
 

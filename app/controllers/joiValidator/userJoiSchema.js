@@ -26,6 +26,10 @@ const resetUserPassword = Joi.object().keys({
     email: Joi.string().email().required(),
 })
 
+const OTPVerify = Joi.object().keys({
+    otp: Joi.string().required(),
+})
+
 const updateUserPassword = Joi.object().keys({
     token: Joi.string().required(),
     new_password: Joi.string().required(),
@@ -34,8 +38,10 @@ const updateUserPassword = Joi.object().keys({
 
 module.exports = {
     registerUser,
+
     updateUser,
     loginUser,
     resetUserPassword,
+    OTPVerify,
     updateUserPassword,
 }

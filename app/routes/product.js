@@ -7,6 +7,8 @@ module.exports = app => {
     router.post('/products', filesUploader, products.create)
     router.get('/products', products.find)
     router.get('/products/:id', products.findOne)
+    router.delete('/products/:id', products.removeProduct)
+
 
 
 

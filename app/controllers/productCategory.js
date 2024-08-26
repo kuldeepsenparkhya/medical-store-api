@@ -1,6 +1,6 @@
 const { ProductCategory } = require("../modals");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { createProductCategory, updateProductCategory } = require("./joiValidator/brandJoi.Schema");
+const { createProductCategory } = require("./joiValidator/productCategoryJoi.Schema");
 
 
 exports.create = async (req, res) => {

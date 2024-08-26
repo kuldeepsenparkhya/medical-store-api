@@ -23,39 +23,74 @@ exports.handleError = (error, status = 400, res,) => {
     return res.status(status).send({ message: error, error: true, })
 }
 
+// exports.getPagination = async (query, fetchedData, totalCount) => {
+//     const { page = 1, limit = 10, sort = 1, } = query;
+
+//     let paginatedData;
+//     let totalItems;
+
+//     if (Array.isArray(fetchedData)) {
+//         paginatedData = fetchedData.slice((page - 1) * limit, page * limit);
+//         totalItems = fetchedData.length;
+
+//     } else if (fetchedData instanceof mongoose.Query) {
+//         paginatedData = await fetchedData
+//             .limit(limit * 1)
+//             .skip((page - 1) * limit)
+//             .sort({ createdAt: -sort })
+//             .exec();
+//         totalItems = await fetchedData.countDocuments();
+
+//     } else {
+//         throw new Error("Unsupported data type for pagination");
+//     }
+
+//     const paginationInfo = {
+//         data: paginatedData,
+//         totalPages: Math.ceil(totalCount / limit),
+//         currentPage: page,
+//         totalItems: totalItems
+//     };
+
+//     return paginationInfo;
+// }
+
+// Utility function to send an email
+
+
+
+
 exports.getPagination = async (query, fetchedData, totalCount) => {
-    const { page = 1, limit = 10, sort = 1, } = query;
+    const { page = 1, limit = 10, sort = 1 } = query;
 
-    let paginatedData;
-    let totalItems;
-
-    if (Array.isArray(fetchedData)) {
-        paginatedData = fetchedData.slice((page - 1) * limit, page * limit);
-        totalItems = fetchedData.length;
-
-    } else if (fetchedData instanceof mongoose.Query) {
-        paginatedData = await fetchedData
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
-            .sort({ createdAt: -sort })
-            .exec();
-        totalItems = await fetchedData.countDocuments();
-
-    } else {
-        throw new Error("Unsupported data type for pagination");
-    }
-
+    // Adjust limit and page to handle pagination
     const paginationInfo = {
-        data: paginatedData,
+        data: fetchedData,
         totalPages: Math.ceil(totalCount / limit),
-        currentPage: page,
-        totalItems: totalItems
+        currentPage: parseInt(page, 10),
+        totalItems: totalCount
     };
 
     return paginationInfo;
 }
 
-// Utility function to send an email
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 exports.sendMailer = async (email, subject, message, res) => {
     const transporter = nodemailer.createTransport({
         host: SMPT_EMAIL_HOST,

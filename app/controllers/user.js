@@ -42,7 +42,8 @@ exports.find = async (req, res) => {
         const searchFilter = q ? {
             $or: [
                 { name: { $regex: new RegExp(q, 'i') } },
-                { userName: { $regex: new RegExp(q, 'i') } }
+                { email: { $regex: new RegExp(q, 'i') } },
+                { mobile: { $regex: new RegExp(q, 'i') } },
             ]
         } : {};
 

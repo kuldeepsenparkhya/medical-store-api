@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken')
 const bcrypt = require("bcrypt");
 const { User } = require('../modals');
-const { loginUser, resetUserPassword, updateUserPassword } = require('./joiValidator/userJoiSchema');
+const { loginUser, resetUserPassword, updateUserPassword, OTPVerify } = require('./joiValidator/userJoiSchema');
 const { handleError, createUUID, sendMailer, handleResponse } = require('../utils/helper');
 const { JWT_EXPIRESIN, JWT_SECREATE, FRONTEND_URL } = require('../config/config');
 
@@ -62,7 +62,7 @@ exports.forgotPassword = async (req, res) => {
             return;
         }
 
-        const token = createUUID();
+        const token = Math.floor(100000 + Math.random() * 900000);
         user.token = token;
         await user.save();
 
@@ -74,7 +74,7 @@ exports.forgotPassword = async (req, res) => {
                         <p style="font-size:25px">Hello,</p>
                         <p>Use the code below to recover access to your Start Shield account.</p>
                         <div style="border-bottom:1px solid #eee">
-                            <a href="${FRONTEND_URL}/reset-password?token=${token}" style="font-size:1.4em; color: #00466a; text-decoration:none; font-weight:600">Click the link and reset your password</a>
+                           <p>Your OTP is:- ${token}</p>
                         </div>
                         <p>The recovery code is only valid for 24 hours after it’s generated. If your code has already expired, you can restart the recovery process and generate a new code.
                         If you haven't initiated an account recovery or password reset in the last 24 hours, ignore this message.</p>
@@ -93,9 +93,44 @@ exports.forgotPassword = async (req, res) => {
 };
 
 // Forgot password verify
+exports.OTPVerify = async (req, res) => {
+    try {
+        const { otp } = req.body
+
+        const { error } = OTPVerify.validate(req.body, { abortEarly: false })
+        if (error) {
+            handleError(error, 400, res)
+            return
+        }
+
+        const user = await User.findOne({ token: otp })
+
+        if (!user) {
+            res.status(409).send({ message: 'This OTP has already been used', error: true });
+            return;
+        }
+
+        const newToken = createUUID()
+
+        await User.updateOne({ token: otp, _id: user._id }, { token: newToken, }, { new: true })
+
+        res.status(200).send({
+            token: newToken,
+            error: false
+        })
+
+    } catch (error) {
+        handleError(error.message, 400, res);
+    }
+
+
+
+}
+
+
 exports.forgotPasswordVerify = async (req, res) => {
     try {
-        const { new_password, confirm_password, token } = req.body
+        const { new_password, confirm_password,token } = req.body
 
         const { error } = updateUserPassword.validate(req.body, { abortEarly: false })
         if (error) {
@@ -126,10 +161,9 @@ exports.forgotPasswordVerify = async (req, res) => {
     } catch (error) {
         handleError(error.message, 400, res);
     }
-
-
-
 }
+
+
 
 // Me get own profile
 exports.me = async (req, res) => {

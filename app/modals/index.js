@@ -8,6 +8,7 @@ const db = {
     Brand: require('./brand'),
     ProductCategory: require('./category'),
     Product: require('./product'),
+    Media: require('./media'),
 }
 
 module.exports = db
