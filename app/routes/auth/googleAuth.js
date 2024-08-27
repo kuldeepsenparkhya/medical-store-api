@@ -3,8 +3,6 @@ const passport = require('passport');
 
 module.exports = app => {
     // Auth Routes
-
-    
     router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
     router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/error' }), (req, res) => {
@@ -13,5 +11,5 @@ module.exports = app => {
     });
 
 
-    app.use('/auth', router);
+    app.use('/api/auth', router);
 }

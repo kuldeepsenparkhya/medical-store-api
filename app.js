@@ -26,11 +26,13 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, "public")));
+
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001", 'https://airedale-electric-eft.ngrok-free.app/'],
+    origin: ["http://localhost:3000", "http://localhost:3001", ' https://janhitchemist.netlify.app'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
     credentials: true
 }));
+
 app.use(bodyParser.json());
 app.use(morgan('tiny'));
 
