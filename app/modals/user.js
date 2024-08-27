@@ -7,7 +7,6 @@ const userSchema = Schema({
     type: String,
     required: true
   },
-
   mobile: {
     type: String,
     required: true
@@ -15,6 +14,11 @@ const userSchema = Schema({
   email: {
     type: String,
     required: true,
+    index: true,
+    unique: true // Unique index. If you specify `unique: true`
+  },
+  googleId: {
+    type: String,
   },
   password: {
     type: String,

@@ -28,7 +28,7 @@ exports.create = async (req, res) => {
         handleResponse(res, datad, 201)
     } catch (error) {
         if (error.code === 11000) {
-            handleError('This userName already exists.', 400, res)
+            handleError('This email is already exists.', 400, res)
             return
         }
         handleError(error.message, 400, res)
@@ -67,7 +67,7 @@ exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
         const user = await User.findOne({ _id: id })
-        handleResponse(res, user, 200)
+        handleResponse(res, user._doc, 200)
     } catch (error) {
         handleError(error.message, 400, res)
     };
