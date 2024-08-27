@@ -26,6 +26,9 @@ const userSchema = Schema({
     type: String,
     minlength: [8, 'Must be at least 6 characters password'],
   },
+  profile: {
+    type: String,
+  },
   role: {
     type: String,
     enum: ['user', 'admin'],

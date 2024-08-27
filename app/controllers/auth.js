@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken')
 const bcrypt = require("bcrypt");
 const { User } = require('../modals');
-const { loginUser, resetUserPassword, updateUserPassword, OTPVerify } = require('./joiValidator/userJoiSchema');
+const { loginUser, resetUserPassword, updateUserPassword, OTPVerify, socialLogin } = require('./joiValidator/userJoiSchema');
 const { handleError, createUUID, sendMailer, handleResponse } = require('../utils/helper');
 const { JWT_EXPIRESIN, JWT_SECREATE, FRONTEND_URL } = require('../config/config');
 
@@ -43,6 +43,83 @@ exports.login = async (req, res) => {
         handleError(error.message, 400, res)
     }
 }
+
+
+
+// Login user and admin
+exports.socialLogin = async (req, res) => {
+    try {
+        const { email, socialID, socialType, name } = req.body
+        const { error } = socialLogin.validate(req.body, { abortEarly: false })
+
+        if (error) {
+            handleError(error, 400, res)
+            return
+        }
+
+        const user = await User.findOne({ email })
+        console.log('user', user);
+
+        if (!user) {
+            console.log('IF case');
+
+            const data = { email, socialID, socialType, name, role: 'user' }
+
+            const newUser = new User(data);
+            await newUser.save();
+
+            const token = jwt.sign({
+                _id: newUser._id,
+                email: newUser.email,
+                role: 'user',
+            }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+
+            res.status(200).send({
+                token: token,
+                role: newUser.role,
+                message: 'LoggedIn Successfully',
+                error: false
+            })
+        }
+        else {
+
+            console.log('else case');
+
+            const token = jwt.sign({
+                _id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+            }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+
+            res.status(200).send({
+                token: token,
+                role: user.role,
+                message: 'LoggedIn Successfully',
+                error: false
+            })
+        }
+
+    }
+    catch (error) {
+        handleError(error.message, 400, res)
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Forgot Password function
 exports.forgotPassword = async (req, res) => {
@@ -130,7 +207,7 @@ exports.OTPVerify = async (req, res) => {
 
 exports.forgotPasswordVerify = async (req, res) => {
     try {
-        const { new_password, confirm_password,token } = req.body
+        const { new_password, confirm_password, token } = req.body
 
         const { error } = updateUserPassword.validate(req.body, { abortEarly: false })
         if (error) {
@@ -167,6 +244,7 @@ exports.forgotPasswordVerify = async (req, res) => {
 
 // Me get own profile
 exports.me = async (req, res) => {
-    const user = await User.findOne({ _id: req.user._id })
+    console.log('reeeeeeeeeeeeeeeeeee', req);
+    const user = await User.findOne({ _id: req.user.id })
     user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, user._doc, 200)
 }

@@ -12,8 +12,14 @@ module.exports = app => {
 
     router.patch('/users/:id', users.update)
     // router.delete('/users/:id', users.delete)
-
     // router.get('/getTotalUsers', users.getTotalUsers)
+    router.patch('/update/profile', users.updateProfile)
 
     app.use('/api', router);
 }
+
+
+
+
+
+

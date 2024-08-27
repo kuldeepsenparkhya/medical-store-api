@@ -10,6 +10,7 @@ const registerUser = Joi.object().keys({
 
 const updateUser = Joi.object().keys({
     name: Joi.string(),
+    profile: Joi.string().optional(),
     email: Joi.string().email(),
     mobile: Joi.string().min(10).max(13),
 
@@ -20,6 +21,13 @@ const loginUser = Joi.object().keys({
     email: Joi.string().email().required(),
     password: Joi.string().min(8).max(32).required(),
 
+})
+
+const socialLogin = Joi.object().keys({
+    email: Joi.string().email().required(),
+    socialID: Joi.string().required(),
+    socialType: Joi.string().required(),
+    name: Joi.string().optional(),
 })
 
 const resetUserPassword = Joi.object().keys({
@@ -38,7 +46,7 @@ const updateUserPassword = Joi.object().keys({
 
 module.exports = {
     registerUser,
-
+    socialLogin,
     updateUser,
     loginUser,
     resetUserPassword,
