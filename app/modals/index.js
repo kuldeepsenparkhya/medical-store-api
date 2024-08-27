@@ -1,14 +1,29 @@
-const { default: mongoose } = require('mongoose')
-const { DB_URI } = require('../config/config')
+const mongoose = require('mongoose');
+const { DB_URI } = require('../config/config');
 
-mongoose.connect(`${DB_URI}`).then(() => console.log('Db connection done')).catch(error => console.log('Error>>>>>>', error))
-
-const db = {
-    User: require('./user'),
-    Brand: require('./brand'),
-    ProductCategory: require('./category'),
-    Product: require('./product'),
-    Media: require('./media'),
+// Ensure the URI is correct
+if (!DB_URI) {
+  console.error('DB_URI is not defined in the configuration.');
+  process.exit(1);
 }
 
-module.exports = db
+mongoose.connect(DB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 10000, // Adjust timeout as needed
+})
+.then(() => console.log('Db connection done'))
+.catch(error => {
+  console.error('Error connecting to the database:', error);
+  process.exit(1); // Exit the process if the connection fails
+});
+
+const db = {
+  User: require('./user'),
+  Brand: require('./brand'),
+  ProductCategory: require('./category'),
+  Product: require('./product'),
+  Media: require('./media'),
+};
+
+module.exports = db;
