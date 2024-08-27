@@ -5,11 +5,9 @@ const { Schema } = mongoose
 const userSchema = Schema({
   name: {
     type: String,
-    required: true
   },
   mobile: {
     type: String,
-    required: true
   },
   email: {
     type: String,
@@ -23,13 +21,11 @@ const userSchema = Schema({
   password: {
     type: String,
     minlength: [8, 'Must be at least 6 characters password'],
-    required: true,
   },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
-    required: true,
   },
   token: {
     type: String,
