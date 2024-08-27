@@ -15,7 +15,11 @@ const userSchema = Schema({
     index: true,
     unique: true // Unique index. If you specify `unique: true`
   },
-  googleId: {
+  socialType: {
+    type: String,
+    enum: ['google', 'facebook'],
+  },
+  socialID: {
     type: String,
   },
   password: {

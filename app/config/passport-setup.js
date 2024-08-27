@@ -7,17 +7,25 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "https://medical-store-api.onrender.com/auth/google/callback"
+
 },
     async (accessToken, refreshToken, profile, done) => {
         const existingUser = await User.findOne({ googleId: profile.id });
+
         if (existingUser) {
+
+            console.log('existingUser>>>>', existingUser);
+
             return done(null, existingUser);
         }
 
+
         const newUser = await new User({
-            googleId: profile.id,
+            socialID: profile.id,
+            socialType:'google',
             name: profile.displayName,
             email: profile.emails[0].value,
+            role: 'user',
         }).save();
 
         done(null, newUser);
