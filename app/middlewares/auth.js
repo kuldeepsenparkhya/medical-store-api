@@ -6,7 +6,7 @@ const { JWT_SECREATE } = require("../config/config");
 
 
 exports.authJWT = async (req, res, next) => {
-  const pathArray = ['/api/login','/api/media','/api/google', '/api/verify/otp', '/api/update/password','/api/organizations/login', '/api/register', '/api/forgotPassword', '/api/reset-password', '/api/organizations/reset-password', '/api/organizations/update-password', '/api/update-password', '/api/email-resend', '/api/organizations/register', '/subscribe']
+  const pathArray = ['/api/login','/api/media','/api/auth/google', '/api/verify/otp', '/api/update/password','/api/organizations/login', '/api/register', '/api/forgotPassword', '/api/reset-password', '/api/organizations/reset-password', '/api/organizations/update-password', '/api/update-password', '/api/email-resend', '/api/organizations/register', '/subscribe']
 
   if (pathArray.includes(req.path))
     
