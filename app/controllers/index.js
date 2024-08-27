@@ -1,5 +1,7 @@
 module.exports = {
     users: require('./user'),
+    addressBooks: require('./addressBook'),
+
     auths: require('./auth'),
 
     brands: require('./brand'),

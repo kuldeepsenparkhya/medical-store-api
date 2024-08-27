@@ -134,9 +134,6 @@ exports.getTotalUsers = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { name, email, mobile } = req.body
-        const { id } = req.user;
-        
-        console.log('id>>>>>>>>>>>>>>', id);
 
         const { error } = updateUser.validate(req.body, { abortEarly: false })
 
@@ -145,12 +142,25 @@ exports.updateProfile = async (req, res) => {
             return
         }
 
+
+        console.log('data>>>>>>>>>>>>', req?.file);
+
         const file = req?.file ? `/media/${req?.file?.filename}` : ''
 
         const data = { name, email, mobile, profile: file }
-        await User.updateOne({ _id: id }, data, { new: true })
+
+
+
+        await User.updateOne({ _id: req.user._id }, data, { new: true })
         res.status(200).send({ message: "User has been successfully update.", error: false })
     } catch (error) {
         handleError(error.message, 400, res)
     };
 };
+
+
+// Me get own profile
+exports.me = async (req, res) => {
+    const user = await User.findOne({ _id: req.user._id })
+    user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, user._doc, 200)
+}

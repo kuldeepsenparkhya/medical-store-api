@@ -46,7 +46,7 @@ exports.login = async (req, res) => {
 
 
 
-// Login user and admin
+// Social Login with google and facebook
 exports.socialLogin = async (req, res) => {
     try {
         const { email, socialID, socialType, name } = req.body
@@ -82,9 +82,6 @@ exports.socialLogin = async (req, res) => {
             })
         }
         else {
-
-            console.log('else case');
-
             const token = jwt.sign({
                 _id: user._id,
                 email: user.email,
@@ -105,20 +102,6 @@ exports.socialLogin = async (req, res) => {
         handleError(error.message, 400, res)
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // Forgot Password function
@@ -242,9 +225,3 @@ exports.forgotPasswordVerify = async (req, res) => {
 
 
 
-// Me get own profile
-exports.me = async (req, res) => {
-    console.log('reeeeeeeeeeeeeeeeeee', req);
-    const user = await User.findOne({ _id: req.user.id })
-    user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, user._doc, 200)
-}

@@ -20,6 +20,7 @@ mongoose.connect(DB_URI, {
 
 const db = {
   User: require('./user'),
+  AddressBook: require('./addressBook'),
   Brand: require('./brand'),
   ProductCategory: require('./category'),
   Product: require('./product'),

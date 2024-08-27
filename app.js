@@ -40,9 +40,11 @@ app.use(morgan('tiny'));
 require('./app/routes/auth/googleAuth')(app);
 require('./app/routes/media')(app);
 require('./app/routes/product')(app);
-require('./app/routes/auth/auth')(app);
 require('./app/routes/brand')(app);
 require('./app/routes/productCategory')(app);
+require('./app/routes/auth/auth')(app);
+require('./app/routes/addressBook')(app);
+
 
 
 app.use(authJWT);

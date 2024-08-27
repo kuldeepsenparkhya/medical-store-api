@@ -12,7 +12,6 @@ module.exports = app => {
     router.patch('/verify/otp', auths.OTPVerify)
     router.patch('/update/password', auths.forgotPasswordVerify)
 
-    router.get('/me', auths.me)
 
     app.use('/api', router);
 }
