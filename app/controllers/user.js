@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 const { JWT_EXPIRESIN, JWT_SECREATE } = require("../config/config")
 const { User } = require("../modals")
 const { handleError, handleResponse, getPagination } = require("../utils/helper")
-const { registerUser, updateUser } = require("./joiValidator/userJoiSchema")
+const { registerUser, updateUser, changePassword } = require("./joiValidator/userJoiSchema")
 
 exports.create = async (req, res) => {
     try {
@@ -29,6 +29,7 @@ exports.create = async (req, res) => {
     } catch (error) {
         if (error.code === 11000) {
             handleError('This email is already exists.', 400, res)
+            
             return
         }
         handleError(error.message, 400, res)
@@ -156,6 +157,53 @@ exports.updateProfile = async (req, res) => {
     } catch (error) {
         handleError(error.message, 400, res)
     };
+};
+
+
+exports.changePassword = async (req, res) => {
+    try {
+        const { new_password, confirm_password, old_password } = req.body;
+        // Validate input
+        const { error } = changePassword.validate(req.body, { abortEarly: false })
+
+        if (error) {
+            handleError(error, 400, res)
+            return
+        }
+
+        if (new_password !== confirm_password) {
+            return res.status(400).send({ message: 'New password and confirm password do not match', error: true });
+        }
+
+        // Find the user
+        const user = await User.findOne({ _id: req.user._id });
+        if (!user) {
+            return res.status(404).send({ message: 'User not found', error: true });
+        }
+
+        // Check if the old password is correct
+        const matchedPassword = await user.matchPassword(old_password);
+        if (!matchedPassword) {
+            return res.status(401).send({ message: 'Old password is incorrect', error: true });
+        }
+        console.log('matchedPassword>>>>>>>>>>>>', matchedPassword);
+
+        // Hash the new password
+        const updatePassword = await bcrypt.hash(new_password, 10);
+
+        await User.updateOne({ _id: user._id }, { password: updatePassword }, { new: true })
+            .then(data => {
+                return res.send({ message: 'You have successfully reset your password', error: false })
+            })
+            .catch(err => {
+                handleError(err.message, 400, res);
+                return
+            })
+
+
+    } catch (error) {
+        handleError(error.message, 500, res); // Adjust status code as needed
+    }
 };
 
 

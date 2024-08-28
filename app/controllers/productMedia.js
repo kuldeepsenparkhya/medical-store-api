@@ -44,11 +44,6 @@ exports.addProductMedia = async (req, res) => {
 }
 
 
-
-
-
-
-
 exports.updateProductMedia = async (req, res) => {
     try {
         const { id } = req.params;

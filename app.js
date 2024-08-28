@@ -40,6 +40,8 @@ app.use(morgan('tiny'));
 // Route setup
 require('./app/routes/auth/googleAuth')(app);
 require('./app/routes/media')(app);
+require('./app/routes/broucher')(app);
+
 require('./app/routes/product')(app);
 require('./app/routes/brand')(app);
 require('./app/routes/productCategory')(app);

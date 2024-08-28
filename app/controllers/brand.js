@@ -94,7 +94,9 @@ exports.update = async (req, res) => {
             return
         }
 
-        const data = { name, description }
+        let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
+
+        const data = { name, description, brand_logo: file_URL }
 
         await Brand.updateOne({ _id: brand._id }, data, { new: true })
 

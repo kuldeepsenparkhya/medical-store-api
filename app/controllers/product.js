@@ -1,6 +1,6 @@
 const res = require("express/lib/response");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { Product, Media, ProductVariant } = require("../modals");
+const { Product, Media, ProductVariant, Brochure } = require("../modals");
 const { productSchema, updateProductSchema } = require("./joiValidator/productJoi.Schema");
 
 // exports.create = async (req, res) => {
@@ -47,7 +47,6 @@ const { productSchema, updateProductSchema } = require("./joiValidator/productJo
 
 exports.create = async (req, res) => {
     try {
-        // Destructure incoming request body
         const {
             title,
             description,
@@ -72,7 +71,7 @@ exports.create = async (req, res) => {
         //   }
 
         // Create the product
-        
+
         const productData = {
             title,
             description,
@@ -107,8 +106,9 @@ exports.create = async (req, res) => {
 
         // Process files
         const files = [];
-        if (req?.files && Array.isArray(req.files)) {
-            req?.files.forEach((val) => {
+        if (req?.files.productFiles && Array.isArray(req.files.productFiles)) {
+
+            req?.files?.productFiles.forEach((val) => {
                 files.push({
                     url: `/media/${val.filename}`,
                     mimetype: val.mimetype,
@@ -119,6 +119,25 @@ exports.create = async (req, res) => {
             // Save file metadata
             await Media.insertMany(files); // Use insertMany to handle multiple documents
         }
+
+
+
+        // Process files
+        const brochures = [];
+        if (req?.files.brochure && Array.isArray(req.files.brochure)) {
+
+            req?.files?.brochure.forEach((val) => {
+                brochures.push({
+                    url: `/broucher/${val.filename}`,
+                    mimetype: val.mimetype,
+                    product_id: newProduct._id
+                });
+            });
+
+            // Save file metadata
+            await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
+        }
+
 
         // Send response
         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
@@ -226,7 +245,14 @@ exports.find = async (req, res) => {
                     as: 'variant'
                 }
             },
-
+            {
+                $lookup: {
+                    from: 'brochures',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'brochures'
+                }
+            },
             {
                 $lookup: {
                     from: 'media',
@@ -235,6 +261,7 @@ exports.find = async (req, res) => {
                     as: 'mediaFiles'
                 }
             },
+     
             {
                 $lookup: {
                     from: 'brands',
@@ -251,6 +278,7 @@ exports.find = async (req, res) => {
                     as: 'productCategory'
                 }
             },
+            
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
             { $sort: { createdAt: sortOrder } }

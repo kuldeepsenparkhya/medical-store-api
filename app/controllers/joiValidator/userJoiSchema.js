@@ -23,6 +23,15 @@ const loginUser = Joi.object().keys({
 
 })
 
+
+const changePassword = Joi.object().keys({
+    old_password: Joi.string().required(),
+    new_password: Joi.string().min(8).max(32).required(),
+    confirm_password: Joi.string().min(8).max(32).required(),
+
+})
+
+
 const socialLogin = Joi.object().keys({
     email: Joi.string().email().required(),
     socialID: Joi.string().required(),
@@ -52,4 +61,5 @@ module.exports = {
     resetUserPassword,
     OTPVerify,
     updateUserPassword,
+    changePassword,
 }

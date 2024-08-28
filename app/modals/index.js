@@ -27,7 +27,8 @@ const db = {
   Media: require('./media'),
   WishList: require('./wishList'),
   AddToCart: require('./addToCart'),
-  ProductVariant: require('./variant')
+  ProductVariant: require('./variant'),
+  Brochure:require('./brochure'),
 
 
 };

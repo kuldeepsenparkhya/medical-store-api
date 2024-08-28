@@ -3,11 +3,6 @@ const { handleError, handleResponse, getPagination, generateInvoice, downloadInv
 const { orderVailidationSchema } = require("./validator/orderJoiSchema");
 
 
-
-
-
-
-
 exports.create = async (req, res) => {
     try {
         const { products } = req.body

@@ -51,5 +51,6 @@ exports.filesUploader = (req, res, next) => {
     fileFilter: fileFilter,
   });
 
-  upload.array("files")(req, res, next);
+  // upload.array("files")(req, res, next);
+  upload.fields([{ name: 'productFiles', maxCount: 10 }, { name: 'brochure', maxCount: 8 }])(req, res, next)
 };
