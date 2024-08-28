@@ -10,6 +10,9 @@ const productCategorySchema = Schema({
   description: {
     type: String,
   },
+  category_img: {
+    type: String,
+  },
 },
   {
     timestamps: true

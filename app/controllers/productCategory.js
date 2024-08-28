@@ -1,6 +1,6 @@
 const { ProductCategory } = require("../modals");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { createProductCategory } = require("./joiValidator/productCategoryJoi.Schema");
+const { createProductCategory, updateProductCategory } = require("./joiValidator/productCategoryJoi.Schema");
 
 
 exports.create = async (req, res) => {
@@ -13,7 +13,8 @@ exports.create = async (req, res) => {
             return
         }
 
-        const data = { name, description, }
+        let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
+        const data = { name, description, category_img: category_img }
         const newCategory = new ProductCategory(data);
 
         await newCategory.save();
@@ -91,8 +92,10 @@ exports.update = async (req, res) => {
             handleError('Invailid category ID.', 400, res)
             return
         }
+        
+        let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
 
-        const data = { name, description }
+        const data = { name, description, category_img: category_img }
 
         await ProductCategory.updateOne({ _id: category._id }, data, { new: true })
 
