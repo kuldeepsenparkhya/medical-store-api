@@ -9,7 +9,6 @@ module.exports = app => {
         res.sendFile(path.join(__dirname, `../upload/${name}`,))
     })
 
-
     // router.post('/products/media/:id', media.addProductMedia)
 
     // router.patch('/products/media/:id', fileUploader, media.updateProductMedia)

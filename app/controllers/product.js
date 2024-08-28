@@ -90,7 +90,7 @@ exports.create = async (req, res) => {
         const newProduct = new Product(productData);
         await newProduct.save();
 
-        const newVarient = JSON?.parse(variants)
+        const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => ({
@@ -261,7 +261,7 @@ exports.find = async (req, res) => {
                     as: 'mediaFiles'
                 }
             },
-     
+
             {
                 $lookup: {
                     from: 'brands',
@@ -278,7 +278,7 @@ exports.find = async (req, res) => {
                     as: 'productCategory'
                 }
             },
-            
+
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
             { $sort: { createdAt: sortOrder } }
