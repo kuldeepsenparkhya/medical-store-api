@@ -1,5 +1,6 @@
+const { wishLists } = require('../controllers');
+
 var router = require('express').Router();
-const { wishLists } = require('../controller');
 
 
 module.exports = app => {

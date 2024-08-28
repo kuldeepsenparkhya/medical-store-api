@@ -12,11 +12,11 @@ mongoose.connect(DB_URI, {
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000, // Adjust timeout as needed
 })
-.then(() => console.log('Db connection done'))
-.catch(error => {
-  console.error('Error connecting to the database:', error);
-  process.exit(1); // Exit the process if the connection fails
-});
+  .then(() => console.log('Db connection done'))
+  .catch(error => {
+    console.error('Error connecting to the database:', error);
+    process.exit(1); // Exit the process if the connection fails
+  });
 
 const db = {
   User: require('./user'),
@@ -25,6 +25,9 @@ const db = {
   ProductCategory: require('./category'),
   Product: require('./product'),
   Media: require('./media'),
+  WishList: require('./wishList'),
+  AddToCart: require('./addToCart')
+
 };
 
 module.exports = db;

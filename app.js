@@ -33,7 +33,8 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({limit:'50mb'})); 
+app.use(bodyParser.urlencoded({extended:true, limit:'50mb'})); 
 app.use(morgan('tiny'));
 
 // Route setup
@@ -44,12 +45,15 @@ require('./app/routes/brand')(app);
 require('./app/routes/productCategory')(app);
 require('./app/routes/auth/auth')(app);
 require('./app/routes/addressBook')(app);
+require('./app/routes/addToCart')(app);
 
 
 
 app.use(authJWT);
 
 require('./app/routes/user')(app);
+require('./app/routes/wishList')(app);
+
 
 
 app.get('*', (req, res) => {

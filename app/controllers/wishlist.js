@@ -1,5 +1,6 @@
-const { WishLists } = require("../model");
-const { wishListVailidationSchema } = require("./validator/wishListJoiSchema");
+const { WishList } = require("../modals");
+const { handleResponse, handleError } = require("../utils/helper");
+const { wishListVailidationSchema } = require("./joiValidator/wishListJoiSchema");
 
 exports.create = async (req, res) => {
     try {
@@ -13,7 +14,7 @@ exports.create = async (req, res) => {
 
         const data = { product_ID, quantity, user_ID: req.user._id }
 
-        const wishList = new WishLists(data)
+        const wishList = new WishList(data)
         await wishList.save()
 
         handleResponse(res, wishList, 'Wishlist created successfully.', 201)

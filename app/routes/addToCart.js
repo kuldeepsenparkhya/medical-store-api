@@ -1,10 +1,15 @@
+const { addToCarts } = require('../controllers');
+
 var router = require('express').Router();
-const { addTocarts } = require('../controller');
 
 
 module.exports = app => {
-    router.post('/addToCart', addTocarts.create);
-    router.get('/addToCart', addTocarts.findAll);
+    router.post('/addToCart', addToCarts.create);
+    router.get('/addToCart', addToCarts.findAll);
+    router.patch('/addToCart/:id', addToCarts.updateCart);
+    router.delete('/addToCart/:id', addToCarts.delete);
+
+
 
 
     app.use('/api', router);

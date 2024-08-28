@@ -2,7 +2,7 @@ const mongoose = require("mongoose")
 const { Schema } = mongoose
 
 const addToCartSchema = Schema({
-    userId: {
+    user_id: {
         type: mongoose.Schema.Types.ObjectId,
         required: true
     },
@@ -12,10 +12,10 @@ const addToCartSchema = Schema({
             required: true,
             ref:'Product'
         },
-        product_variant_ID: {
-            type: mongoose.Schema.Types.ObjectId,
-            required: true
-        },
+        // product_variant_ID: {
+        //     type: mongoose.Schema.Types.ObjectId,
+        //     required: true
+        // },
         quantity: {
             type: Number,
             required: true,
