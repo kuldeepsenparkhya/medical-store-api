@@ -1,28 +1,114 @@
 const res = require("express/lib/response");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { Product, Media } = require("../modals");
+const { Product, Media, ProductVariant } = require("../modals");
 const { productSchema, updateProductSchema } = require("./joiValidator/productJoi.Schema");
+
+// exports.create = async (req, res) => {
+//     try {
+//         const { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects } = req.body;
+
+//         const { error } = productSchema.validate(req.body, { abortEarly: false });
+
+//         if (error) {
+//             handleError(error, 400, res);
+//             return;
+//         }
+
+//         const data = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+
+//         const newProduct = new Product(data);
+//         await newProduct.save();
+
+//         // Process files
+//         const files = [];
+//         if (req.files && Array.isArray(req.files)) {
+//             req.files.forEach((val) => {
+//                 files.push({
+//                     url: `/media/${val.filename}`,
+//                     mimetype: val.mimetype,
+//                     product_id: newProduct._id
+//                 });
+//             });
+
+//             // Save file metadata
+//             await Media.insertMany(files); // Use insertMany to handle multiple documents
+//         }
+
+//         // Send response
+//         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
+
+//     } catch (error) {
+//         // Handle any unexpected errors
+//         handleError(error.message || 'An unexpected error occurred', 400, res);
+//     }
+// }
+
+
 
 exports.create = async (req, res) => {
     try {
-        const { title, description, sku, price, discounted_price, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects } = req.body;
+        // Destructure incoming request body
+        const {
+            title,
+            description,
+            sku,
+            quantity,
+            consume_type,
+            return_policy,
+            product_category_id,
+            brand_id,
+            expiry_date,
+            manufacturing_date,
+            inStock,
+            sideEffects,
+            variants // Add variants to destructured object
+        } = req?.body;
 
-        const { error } = productSchema.validate(req.body, { abortEarly: false });
+        // Validate the request body
+        //   const { error } = productSchema.validate(req.body, { abortEarly: false });
+        //   if (error) {
+        //     handleError(error, 400, res);
+        //     return;
+        //   }
 
-        if (error) {
-            handleError(error, 400, res);
-            return;
-        }
+        // Create the product
+        
+        const productData = {
+            title,
+            description,
+            sku,
+            quantity,
+            consume_type,
+            return_policy,
+            product_category_id,
+            brand_id,
+            expiry_date,
+            manufacturing_date,
+            inStock,
+            sideEffects
+        };
 
-        const data = { title, description, sku, price, discounted_price, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
-
-        const newProduct = new Product(data);
+        const newProduct = new Product(productData);
         await newProduct.save();
+
+        const newVarient = JSON?.parse(variants)
+        // Process variants if provided
+        if (newVarient && Array.isArray(newVarient)) {
+            const variantData = newVarient.map(variant => ({
+                ...variant,
+                productId: newProduct._id // Associate the variant with the new product
+            }));
+
+            // Insert all variants in one go
+
+
+            await ProductVariant.insertMany(variantData);
+        }
 
         // Process files
         const files = [];
-        if (req.files && Array.isArray(req.files)) {
-            req.files.forEach((val) => {
+        if (req?.files && Array.isArray(req.files)) {
+            req?.files.forEach((val) => {
                 files.push({
                     url: `/media/${val.filename}`,
                     mimetype: val.mimetype,
@@ -41,7 +127,39 @@ exports.create = async (req, res) => {
         // Handle any unexpected errors
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
-}
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 exports.find = async (req, res) => {
     try {
@@ -100,6 +218,15 @@ exports.find = async (req, res) => {
             ...searchFilter,
             { $skip: skip },
             { $limit: parseInt(limit, 10) },
+            {
+                $lookup: {
+                    from: 'variants',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'variant'
+                }
+            },
+
             {
                 $lookup: {
                     from: 'media',

@@ -13,13 +13,6 @@ exports.create = async (req, res) => {
             return
         }
 
-
-
-        console.log('req.body>>>>>>>>>>>', req.body);
-        console.log('file>>>>>>>>>>>', req.file);
-
-
-
         let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
 
         const data = { name, description, brand_logo: file_URL }

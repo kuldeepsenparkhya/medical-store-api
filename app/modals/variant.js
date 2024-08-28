@@ -2,14 +2,30 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose
 
 const productVariantSchema = Schema({
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-    attributes: {
-        color: String,
-        size: String,
-        // other attributes as needed
+    productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product'
     },
-    price: Number,
-    quantity: Number
+    size: {
+        type: String,
+        required: true,
+    },
+    color: {
+        type: String,
+        default: null, // Optional, in case the product has color variants
+    },
+    price: {
+        type: Number,
+        required: true,
+    },
+    discounted_price: {
+        type: Number,
+        required: true,
+    },
+    quantity: {
+        type: Number,
+        required: true,
+    },
 
 }, {
     timestamps: true

@@ -1,7 +1,6 @@
 const mongoose = require("mongoose")
 const { Schema } = mongoose
 
-
 const productSchema = Schema({
   title: {
     type: String,
@@ -9,14 +8,6 @@ const productSchema = Schema({
   },
   description: {
     type: String,
-    required: true,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  discounted_price: {
-    type: Number,
     required: true,
   },
   quantity: {
@@ -50,6 +41,7 @@ const productSchema = Schema({
     type: Date,
     required: true,
   },
+
   inStock: {
     type: Boolean,
     default: true,
@@ -62,6 +54,7 @@ const productSchema = Schema({
     type: Boolean,
     default: false,
   },
+  
 },
   {
     timestamps: true

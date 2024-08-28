@@ -12,8 +12,6 @@ const productSchema = Joi.object({
     title: Joi.string().required(),
     description: Joi.string().required(),
     sku: Joi.string().optional(),
-    price: Joi.number().required(), // Assuming price is a string in your schema
-    discounted_price: Joi.number().required(), // Assuming discounted_price is a string in your schema
     quantity: Joi.number().required(), // Assuming quantity is a string in your schema
     consume_type: Joi.string()
         .valid('oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal')
