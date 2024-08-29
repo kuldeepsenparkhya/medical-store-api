@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const { authJWT } = require('./app/middlewares/auth');
 const { PORT } = require('./app/config/config');
-const HOST = '192.168.0.23';
+// const HOST = '192.168.0.23';
 // Initialize Passport
 require('./app/config/passport-setup'); // Ensure this is required to initialize Passport
 
@@ -68,4 +68,6 @@ app.get('*', (req, res) => {
     });
 });
 
-app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
+// app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
+app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
+
