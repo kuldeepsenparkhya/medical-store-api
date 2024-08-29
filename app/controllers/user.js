@@ -17,11 +17,17 @@ exports.create = async (req, res) => {
         }
 
         const data = { name, email, password, mobile, role };
-        const token = jwt.sign({ data }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN });
-
         const newUser = new User(data);
 
         await newUser.save();
+
+        const token = jwt.sign({
+            _id: newUser._id,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role,
+        }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+
 
         const datad = { ...newUser._doc, token }
 
@@ -29,7 +35,7 @@ exports.create = async (req, res) => {
     } catch (error) {
         if (error.code === 11000) {
             handleError('This email is already exists.', 400, res)
-            
+
             return
         }
         handleError(error.message, 400, res)
@@ -39,7 +45,7 @@ exports.create = async (req, res) => {
 
 exports.find = async (req, res) => {
     try {
-        const { role, q } = req.query;
+        const { role, q, page = 1, limit = 10, sort } = req.query;
         const searchFilter = q ? {
             $or: [
                 { name: { $regex: new RegExp(q, 'i') } },
@@ -49,6 +55,11 @@ exports.find = async (req, res) => {
         } : {};
 
         const users = await User.find({ ...searchFilter })
+            .skip((page - 1) * limit)  // Skip the records for previous pages
+            .limit(parseInt(limit))   // Limit the number of records returned
+        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
+
+
 
         const getUsers = users.filter((user) => user.role !== 'admin')
 

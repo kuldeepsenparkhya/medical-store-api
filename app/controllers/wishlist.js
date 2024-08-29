@@ -27,7 +27,7 @@ exports.create = async (req, res) => {
 exports.findAllWishLists = async (req, res) => {
     try {
 
-        const { role, q } = req.query;
+        const { role, q, page = 1, limit = 10, sort } = req.query;
         const searchFilter = q ? {
             $or: [
                 { product_ID: { $regex: new RegExp(q, 'i') } },
@@ -35,6 +35,10 @@ exports.findAllWishLists = async (req, res) => {
         } : {};
 
         const wishList = await WishLists.find({ ...searchFilter, user_ID: req.user_id })
+            .skip((page - 1) * limit)  // Skip the records for previous pages
+            .limit(parseInt(limit))   // Limit the number of records returned
+        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
+
 
         const totalCount = await WishLists.countDocuments()
 

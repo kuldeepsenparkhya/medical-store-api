@@ -9,7 +9,7 @@ exports.create = async (req, res) => {
 
         if (error) {
             handleError(error, 400, res);
-            return
+            return;
         };
 
         const data = { products, user_id: user_id }

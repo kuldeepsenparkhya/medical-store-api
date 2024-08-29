@@ -1,4 +1,3 @@
-
 module.exports = {
     users: require('./user'),
     addressBooks: require('./addressBook'),
@@ -7,13 +6,14 @@ module.exports = {
 
     brands: require('./brand'),
     productCategories: require('./productCategory'),
-    
+
     products: require('./product'),
-    
+
     media: require('./productMedia'),
     wishLists: require('./wishlist'),
     addToCarts: require('./addToCart'),
+    prescriptions: require('./prescription'),
 
-
+    orders: require('./order'),
 
 }

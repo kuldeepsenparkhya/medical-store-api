@@ -1,4 +1,3 @@
-const res = require("express/lib/response");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { Product, Media, ProductVariant, Brochure } = require("../modals");
 const { productSchema, updateProductSchema } = require("./joiValidator/productJoi.Schema");
@@ -47,6 +46,9 @@ const { productSchema, updateProductSchema } = require("./joiValidator/productJo
 
 exports.create = async (req, res) => {
     try {
+
+        console.log('req?.files>>>>>>>>>>', req);
+
         const {
             title,
             description,
@@ -91,6 +93,10 @@ exports.create = async (req, res) => {
         await newProduct.save();
 
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
+
+        console.log('newVarient>>>>>>>>>>>>>', newVarient);
+
+
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => ({
@@ -106,7 +112,7 @@ exports.create = async (req, res) => {
 
         // Process files
         const files = [];
-        if (req?.files.productFiles && Array.isArray(req.files.productFiles)) {
+        if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
 
             req?.files?.productFiles.forEach((val) => {
                 files.push({
@@ -124,7 +130,7 @@ exports.create = async (req, res) => {
 
         // Process files
         const brochures = [];
-        if (req?.files.brochure && Array.isArray(req.files.brochure)) {
+        if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
 
             req?.files?.brochure.forEach((val) => {
                 brochures.push({
@@ -147,33 +153,6 @@ exports.create = async (req, res) => {
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1,5 +1,14 @@
 const { default: mongoose } = require('mongoose');
 const nodemailer = require('nodemailer');
+
+
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path'); // Import the path module
+
+
+
+
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
 
 
@@ -58,38 +67,20 @@ exports.handleError = (error, status = 400, res,) => {
 // Utility function to send an email
 
 
-
-
+// Modify the getPagination function to correctly reflect the data
 exports.getPagination = async (query, fetchedData, totalCount) => {
-    const { page = 1, limit = 10, sort = 1 } = query;
+    const { page = 1, limit = 10 } = query;
 
-    // Adjust limit and page to handle pagination
+    // Calculate pagination information
     const paginationInfo = {
-        data: fetchedData,
-        totalPages: Math.ceil(totalCount / limit),
-        currentPage: parseInt(page, 10),
-        totalItems: totalCount
+        data: fetchedData,  // Paginated data
+        totalPages: Math.ceil(totalCount / limit),  // Total number of pages
+        currentPage: parseInt(page, 10),  // Current page number
+        totalItems: totalCount  // Total number of matching documents
     };
 
     return paginationInfo;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+};
 
 exports.sendMailer = async (email, subject, message, res) => {
     const transporter = nodemailer.createTransport({
@@ -131,4 +122,112 @@ exports.createUUID = () => {
 
 exports.sendNotification = (subscription, payload) => {
     webpush.sendNotification(subscription, payload).catch(err => console.error(err));
+}
+
+
+
+
+exports.generateInvoice = (invoiceName) => {
+    // Create a new PDF document
+    const doc = new PDFDocument();
+
+    // File path to save the generated PDF
+    const filePath = path.join(__dirname, "../invoices", `${invoiceName}.pdf`);
+
+    // Pipe the PDF document to a write stream
+    doc.pipe(fs.createWriteStream(filePath));
+
+    // Add content to the PDF
+    doc
+        .fontSize(27)
+        .text('Invoice', { align: 'center' })
+        .moveDown(); // Move down one line
+
+    // Add invoice details
+    doc
+        .fontSize(12)
+        .text('Invoice Date: January 1, 2024', 50, 120)
+        .text('Invoice Number: #123456789', 50, 140)
+        .moveDown(); // Move down one line
+
+    // Add customer information
+    doc
+        .fontSize(14)
+        .text('Customer Information:', 50, 180)
+        .fontSize(12)
+        .text('Name: John Doe', 50, 200)
+        .text('Email: john@example.com', 50, 220)
+        .moveDown(); // Move down one line
+
+    // Add order details
+    doc
+        .fontSize(14)
+        .text('Order Details:', 50, 260)
+        .fontSize(12)
+        .text('Product 1: $50', 50, 280)
+        .text('Product 2: $30', 50, 300)
+        .moveDown(); // Move down one line
+
+    // Add total amount
+    doc
+        .fontSize(16)
+        .text('Total Amount: $80', 50, 340);
+
+    // Finalize PDF file
+    doc.end();
+}
+
+
+exports.downloadInvoice = (orders) => {
+    // Create a new PDF document
+    const doc = new PDFDocument();
+
+    // File path to save the generated PDF
+    const filePath = path.join(__dirname, "../invoices", 'example.pdf');
+
+    // Pipe the PDF document to a write stream
+    doc.pipe(fs.createWriteStream(filePath));
+
+    // Add content to the PDF
+    doc
+        .fontSize(27)
+        .text('Invoice', { align: 'center' })
+        .moveDown(); // Move down one line
+
+    // Add invoice details
+    doc
+        .fontSize(12)
+        .text(`Invoice Date: ${orders.createdAt}`, 50, 120)
+        .text('Invoice Number: #123456789', 50, 140)
+        .moveDown(); // Move down one line
+
+    // Add customer information
+    doc
+        .fontSize(14)
+        .text('Customer Information:', 50, 180)
+        .fontSize(12)
+        .text('Name: John Doe', 50, 200)
+        .text('Email: john@example.com', 50, 220)
+        .moveDown(); // Move down one line
+
+    // Add order details
+
+    orders?.products?.map((item) => {
+        doc
+            .fontSize(14)
+            .text('Order Details:', 50, 260)
+            .fontSize(12)
+            .text(`Product 1: ${item.price}`, 50, 280)
+            .moveDown(); // Move down one line
+    })
+
+
+
+    // Add total amount
+    doc
+        .fontSize(16)
+        .text('Total Amount: $80', 50, 340);
+
+    // Finalize PDF file
+    doc.end();
 }

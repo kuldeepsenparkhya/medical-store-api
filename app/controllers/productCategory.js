@@ -32,7 +32,7 @@ exports.create = async (req, res) => {
 
 exports.find = async (req, res) => {
     try {
-        const { role, q } = req.query;
+        const { role, q, page = 1, limit = 10, sort } = req.query;
         const searchFilter = q ? {
             $or: [
                 { name: { $regex: new RegExp(q, 'i') } },
@@ -41,6 +41,10 @@ exports.find = async (req, res) => {
         } : {};
 
         const productCategory = await ProductCategory.find({ ...searchFilter })
+            .skip((page - 1) * limit)  // Skip the records for previous pages
+            .limit(parseInt(limit))   // Limit the number of records returned
+        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
+
 
         const totalCount = await ProductCategory.countDocuments()
 
@@ -92,7 +96,7 @@ exports.update = async (req, res) => {
             handleError('Invailid category ID.', 400, res)
             return
         }
-        
+
         let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
 
         const data = { name, description, category_img: category_img }

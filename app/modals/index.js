@@ -29,6 +29,10 @@ const db = {
   AddToCart: require('./addToCart'),
   ProductVariant: require('./variant'),
   Brochure:require('./brochure'),
+  Prescription:require('./prescription'),
+  
+  
+  Order:require('./order'),
 
 
 };

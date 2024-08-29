@@ -4,8 +4,8 @@ const Joi = require('joi');
 const orderVailidationSchema = Joi.object({
     
     products: Joi.array().items(Joi.object({
-        productId: Joi.string().required(),
-        productVariantId: Joi.string().required(),
+        product_id: Joi.string().required(),
+        product_variant_id: Joi.string().required(),
         price: Joi.number().min(0).required(),
         quantity: Joi.number().min(1).required()
     })).required(),

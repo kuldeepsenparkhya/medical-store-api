@@ -34,6 +34,22 @@ exports.authJWT = async (req, res, next) => {
 }
 
 
+exports.adminAccess = async (req, res, next) => {
+  try {
+    if (req?.user?.role === 'admin') {
+      return next();
+    }
+    else {
+      handleError('Unauthorized access!', 401, res)
+      return;
+    }
+  } catch (error) {
+    handleError('Unauthorized access!', 401, res)
+    return;
+  }
+};
+
+
 exports.multipleFileUploading = async (req, res, next) => {
 
   const BASE_PATH = __dirname

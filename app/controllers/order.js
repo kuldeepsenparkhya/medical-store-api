@@ -1,6 +1,9 @@
-const { Order } = require("../model");
-const { handleError, handleResponse, getPagination, generateInvoice, downloadInvoice } = require("../utils/helper");
-const { orderVailidationSchema } = require("./validator/orderJoiSchema");
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
+const { handleError, handleResponse, generateInvoice, getPagination } = require("../utils/helper");
+const { Order } = require('../modals');
 
 
 exports.create = async (req, res) => {
@@ -23,11 +26,16 @@ exports.create = async (req, res) => {
             totalPrice += item.total;
         });
 
-        const data = { products: newData, totalPrice, userId: req.user._id }
+        const data = { products: newData, totalPrice, user_id: req.user._id }
         const newOrder = new Order(data);
 
         await newOrder.save();
-        generateInvoice()
+
+
+
+        generateInvoice(data.user_id)
+
+
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
     } catch (error) {
@@ -35,34 +43,84 @@ exports.create = async (req, res) => {
     }
 };
 
+
 exports.findAllOrders = async (req, res) => {
     try {
-        const { role, q } = req.query;
-        const searchFilter = q ? {
-            $or: [
-                { full_name: { $regex: new RegExp(q, 'i') } },
-                { email: { $regex: new RegExp(q, 'i') } }
-            ]
-        } : {};
+        // Extract skip and limit from the request query
+        const skip = parseInt(req.query.skip, 10) || 0;  // default to 0 if not provided
+        const limit = parseInt(req.query.limit, 10) || 10;  // default to 10 if not provided
 
-        const orders = await Order.find({ ...searchFilter })
+        // Aggregation pipeline
+        const pipeline = [
+            { $skip: skip },
+            { $limit: limit },
+            // Unwind the products array to deal with individual product entries
+            { $unwind: { path: "$products", preserveNullAndEmptyArrays: true } },
+            // Lookup to fetch the product details
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product_id',  // 'product_id' inside the products array in orders
+                    foreignField: '_id',
+                    as: 'products.productDetails'
+                }
+            },
+            // Lookup to fetch the variant details
+            {
+                $lookup: {
+                    from: 'variants',
+                    localField: 'products.product_variant_id',  // 'product_variant_id' inside the products array in orders
+                    foreignField: '_id',
+                    as: 'products.variantDetails'
+                }
+            },
+            // Optionally unwind the lookup results if you prefer single objects rather than arrays
+            { $unwind: { path: "$products.productDetails", preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: "$products.variantDetails", preserveNullAndEmptyArrays: true } },
+            // Lookup for user details
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'user_id',  // Assuming 'user_id' in 'orders' matches '_id' in 'users'
+                    foreignField: '_id',
+                    as: 'users'
+                }
+            },
+            // Unwind the user details if you want them as an object instead of an array
+            { $unwind: { path: "$users", preserveNullAndEmptyArrays: true } }
+        ];
 
-        const totalCount = await Order.countDocuments()
+        // Execute the aggregation
+        const orders = await Order.aggregate(pipeline);
+        const totalCount = await Order.countDocuments();  // Get total count of orders for pagination
 
+        // Pagination result helper function
         const getPaginationResult = await getPagination(req.query, orders, totalCount);
 
-        handleResponse(res, getPaginationResult, 'Your orders has been retrieve successfuly.', 200)
+        // Send response
+        handleResponse(res, getPaginationResult, 'All orders have been retrieved successfully.', 200);
 
     } catch (error) {
+        // Error handling
         handleError(error, 400, res);
     }
 };
 
 
 
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
+exports.getOrderById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Order.findOne({ _id: id })
+        handleResponse(res, order._doc, 200)
+    } catch (error) {
+        handleError(error.message, 400, res)
+    };
+};
+
+
+
+
 
 exports.downloadInvoice = async (req, res) => {
     try {
