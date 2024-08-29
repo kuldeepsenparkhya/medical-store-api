@@ -14,7 +14,8 @@ const orderSchema = Schema({
         },
         product_variant_id: {
             type: mongoose.Schema.Types.ObjectId,
-            required: true
+            required: true,
+            ref: 'Variant'
         },
         quantity: {
             type: Number,
@@ -33,7 +34,7 @@ const orderSchema = Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'delivered','dispatch','cancelled'],
+        enum: ['pending', 'delivered', 'dispatch', 'cancelled'],
         default: 'pending',
         required: true,
     },

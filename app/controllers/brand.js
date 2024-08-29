@@ -46,7 +46,7 @@ exports.find = async (req, res) => {
         const brand = await Brand.find({ ...searchFilter })
             .skip((page - 1) * limit)  // Skip the records for previous pages
             .limit(parseInt(limit))   // Limit the number of records returned
-            // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
+        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
 
         // Get the count of documents matching the search filter
         const totalCount = await Brand.countDocuments({ ...searchFilter });
@@ -94,7 +94,7 @@ exports.update = async (req, res) => {
             return
         }
 
-        const brand = await ProductCategory.findOne({ _id: id })
+        const brand = await Brand.findOne({ _id: id })
 
         if (!brand) {
             handleError('Invailid Brand ID.', 400, res)
@@ -103,7 +103,10 @@ exports.update = async (req, res) => {
 
         let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
 
-        const data = { name, description, brand_logo: file_URL }
+        const data = {name, description, brand_logo: file_URL }
+
+
+        console.log('file_URL>>>>>>>>', data);
 
         await Brand.updateOne({ _id: brand._id }, data, { new: true })
 

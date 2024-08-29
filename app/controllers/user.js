@@ -55,10 +55,8 @@ exports.find = async (req, res) => {
         } : {};
 
         const users = await User.find({ ...searchFilter })
-            .skip((page - 1) * limit)  // Skip the records for previous pages
-            .limit(parseInt(limit))   // Limit the number of records returned
-        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
-
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit)) 
 
 
         const getUsers = users.filter((user) => user.role !== 'admin')

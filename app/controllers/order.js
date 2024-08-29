@@ -43,60 +43,28 @@ exports.create = async (req, res) => {
     }
 };
 
-
 exports.findAllOrders = async (req, res) => {
     try {
-        // Extract skip and limit from the request query
-        const skip = parseInt(req.query.skip, 10) || 0;  // default to 0 if not provided
-        const limit = parseInt(req.query.limit, 10) || 10;  // default to 10 if not provided
+        const orders = await Order.find({})
+            .populate({
+                path: 'products.product_id',
+                select: 'title description consume_type return_policy expiry_date manufacturing_date ',
+                model: 'Product'
+            })
+            .populate({
+                path: 'products.product_variant_id',
+                model: 'Variant'
+            })
+            .populate({
+                path: 'user_id',
+                select: 'name email mobile',
+                model: 'User'
+            })
 
-        // Aggregation pipeline
-        const pipeline = [
-            { $skip: skip },
-            { $limit: limit },
-            // Unwind the products array to deal with individual product entries
-            { $unwind: { path: "$products", preserveNullAndEmptyArrays: true } },
-            // Lookup to fetch the product details
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'products.product_id',  // 'product_id' inside the products array in orders
-                    foreignField: '_id',
-                    as: 'products.productDetails'
-                }
-            },
-            // Lookup to fetch the variant details
-            {
-                $lookup: {
-                    from: 'variants',
-                    localField: 'products.product_variant_id',  // 'product_variant_id' inside the products array in orders
-                    foreignField: '_id',
-                    as: 'products.variantDetails'
-                }
-            },
-            // Optionally unwind the lookup results if you prefer single objects rather than arrays
-            { $unwind: { path: "$products.productDetails", preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: "$products.variantDetails", preserveNullAndEmptyArrays: true } },
-            // Lookup for user details
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'user_id',  // Assuming 'user_id' in 'orders' matches '_id' in 'users'
-                    foreignField: '_id',
-                    as: 'users'
-                }
-            },
-            // Unwind the user details if you want them as an object instead of an array
-            { $unwind: { path: "$users", preserveNullAndEmptyArrays: true } }
-        ];
 
-        // Execute the aggregation
-        const orders = await Order.aggregate(pipeline);
         const totalCount = await Order.countDocuments();  // Get total count of orders for pagination
-
         // Pagination result helper function
         const getPaginationResult = await getPagination(req.query, orders, totalCount);
-
         // Send response
         handleResponse(res, getPaginationResult, 'All orders have been retrieved successfully.', 200);
 
@@ -108,10 +76,72 @@ exports.findAllOrders = async (req, res) => {
 
 
 
+
+
+exports.findAllUserOrders = async (req, res) => {
+    try {
+
+
+
+
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+
+        // Calculate the skip value based on current page and limit
+        const skip = (page - 1) * limit;
+
+        // Fetch the paginated orders with populated fields
+        const orders = await Order.find({ user_id: req.user._id })
+            .skip(skip)
+            .limit(limit)
+            .populate({
+                path: 'products.product_id',
+                select: 'title description consume_type return_policy expiry_date manufacturing_date',
+                model: 'Product'
+            })
+            .populate({
+                path: 'products.product_variant_id',
+                model: 'Variant'
+            })
+            .populate({
+                path: 'user_id',
+                select: 'name email mobile',
+                model: 'User'
+            });
+
+        // Get the total count of orders for pagination
+        const totalCount = await Order.countDocuments({ user_id: req.user._id });
+
+        // Pagination result helper function
+        const paginationResult = await getPagination(req.query, orders, totalCount);
+
+        // Send response
+        handleResponse(res, paginationResult, 'User orders have been retrieved successfully.', 200);
+
+    } catch (error) {
+        // Error handling
+        handleError(error.message, 400, res);
+    }
+};
+
+
+
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
-        const order = await Order.findOne({ _id: id })
+        const order = await Order.findOne({ _id: id }).populate({
+            path: 'products.product_id',
+            select: 'title description',
+            model: 'Product'
+        }).populate({
+            path: 'products.product_variant_id',
+            model: 'Variant'
+        }).populate({
+            path: 'user_id',
+            select: 'name email mobile',
+            model: 'User'
+        }).exec();
+
         handleResponse(res, order._doc, 200)
     } catch (error) {
         handleError(error.message, 400, res)
@@ -119,7 +149,45 @@ exports.getOrderById = async (req, res) => {
 };
 
 
+exports.cancelledOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Order.findOne({ _id: id, user_id: req.user._id })
 
+        if (!order) {
+            handleError('Invailid order ID.', 400, res)
+            return
+        }
+
+        await Order.updateOne({ _id: order._id }, { status: 'cancelled' }, { new: true })
+
+        res.status(200).send({ message: "Order has been successfully cancelled.", error: false })
+
+    } catch (error) {
+        handleError(error.message, 400, res)
+    }
+}
+
+
+exports.handleCancelledOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body
+        const order = await Order.findOne({ _id: id })
+
+        if (!order) {
+            handleError('Invailid order ID.', 400, res)
+            return
+        }
+
+        await Order.updateOne({ _id: order._id }, { status: status }, { new: true })
+
+        res.status(200).send({ message: `Order has been successfully ${status}`, error: false })
+
+    } catch (error) {
+        handleError(error.message, 400, res)
+    }
+}
 
 
 exports.downloadInvoice = async (req, res) => {

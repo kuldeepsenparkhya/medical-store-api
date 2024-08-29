@@ -46,9 +46,6 @@ const { productSchema, updateProductSchema } = require("./joiValidator/productJo
 
 exports.create = async (req, res) => {
     try {
-
-        console.log('req?.files>>>>>>>>>>', req);
-
         const {
             title,
             description,
