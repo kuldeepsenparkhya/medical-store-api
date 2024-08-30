@@ -6,6 +6,10 @@ const productVariantSchema = Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product'
     },
+    discount_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Discount'
+    },
     size: {
         type: String,
         required: true,
@@ -15,10 +19,6 @@ const productVariantSchema = Schema({
         default: null, // Optional, in case the product has color variants
     },
     price: {
-        type: Number,
-        required: true,
-    },
-    discounted_price: {
         type: Number,
         required: true,
     },

@@ -4,7 +4,14 @@ const { Schema } = mongoose
 const orderSchema = Schema({
     user_id: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true
+        required: true,
+        ref: 'User'
+
+    },
+    address_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'AddressBook'
     },
     products: [{
         product_id: {
@@ -16,6 +23,11 @@ const orderSchema = Schema({
             type: mongoose.Schema.Types.ObjectId,
             required: true,
             ref: 'Variant'
+        },
+        media_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true,
+            ref: 'Media'
         },
         quantity: {
             type: Number,

@@ -1,75 +1,16 @@
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { Product, Media, ProductVariant, Brochure } = require("../modals");
-const { productSchema, updateProductSchema } = require("./joiValidator/productJoi.Schema");
-
-// exports.create = async (req, res) => {
-//     try {
-//         const { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects } = req.body;
-
-//         const { error } = productSchema.validate(req.body, { abortEarly: false });
-
-//         if (error) {
-//             handleError(error, 400, res);
-//             return;
-//         }
-
-//         const data = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
-
-//         const newProduct = new Product(data);
-//         await newProduct.save();
-
-//         // Process files
-//         const files = [];
-//         if (req.files && Array.isArray(req.files)) {
-//             req.files.forEach((val) => {
-//                 files.push({
-//                     url: `/media/${val.filename}`,
-//                     mimetype: val.mimetype,
-//                     product_id: newProduct._id
-//                 });
-//             });
-
-//             // Save file metadata
-//             await Media.insertMany(files); // Use insertMany to handle multiple documents
-//         }
-
-//         // Send response
-//         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
-
-//     } catch (error) {
-//         // Handle any unexpected errors
-//         handleError(error.message || 'An unexpected error occurred', 400, res);
-//     }
-// }
-
+const { updateProductSchema } = require("./joiValidator/productJoi.Schema");
 
 
 exports.create = async (req, res) => {
     try {
-        const {
-            title,
-            description,
-            sku,
-            quantity,
-            consume_type,
-            return_policy,
-            product_category_id,
-            brand_id,
-            expiry_date,
-            manufacturing_date,
-            inStock,
-            sideEffects,
-            variants // Add variants to destructured object
-        } = req?.body;
+        const { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants } = req?.body;
 
-        // Validate the request body
-        //   const { error } = productSchema.validate(req.body, { abortEarly: false });
-        //   if (error) {
-        //     handleError(error, 400, res);
-        //     return;
-        //   }
-
-        // Create the product
+        if (!variants) {
+            handleError('Product variants are missing', 400, res);
+            return
+        }
 
         const productData = {
             title,
@@ -91,9 +32,6 @@ exports.create = async (req, res) => {
 
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
 
-        console.log('newVarient>>>>>>>>>>>>>', newVarient);
-
-
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => ({
@@ -102,15 +40,12 @@ exports.create = async (req, res) => {
             }));
 
             // Insert all variants in one go
-
-
             await ProductVariant.insertMany(variantData);
         }
 
         // Process files
         const files = [];
         if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
-
             req?.files?.productFiles.forEach((val) => {
                 files.push({
                     url: `/media/${val.filename}`,
@@ -122,8 +57,6 @@ exports.create = async (req, res) => {
             // Save file metadata
             await Media.insertMany(files); // Use insertMany to handle multiple documents
         }
-
-
 
         // Process files
         const brochures = [];
@@ -141,18 +74,13 @@ exports.create = async (req, res) => {
             await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
         }
 
-
         // Send response
         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
-
     } catch (error) {
         // Handle any unexpected errors
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
 };
-
-
-
 
 
 
@@ -289,26 +217,40 @@ exports.findOne = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const { title, description, sku, price, discounted_price, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects } = req.body;
 
         const { id } = req.params;
 
-        const { error } = updateProductSchema.validate(req.body, { abortEarly: false })
+        const { title, description, sku, quantity, consume_type, return_policy, product_category_id,
+            brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants } = req?.body;
 
-        if (error) {
-            handleError(error, 400, res)
+        const product = await Product.findOne({ _id: id })
+        if (!product) {
+            handleError('Invalid product ID', 400, res);
             return
         }
 
+        if (!variants) {
+            handleError('Product variants are missing', 400, res);
+            return
+        }
 
-        const data = { title, description, sku, price, discounted_price, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+        // Update the basic product information
+        const updatedData = {
+            title, description, sku, quantity, consume_type, return_policy,
+            product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects
+        };
 
-        await Product.updateOne({ _id: id }, data, { new: true })
+        await Product.updateOne({ _id: id }, updatedData, { new: true });
+
+
+
+
         res.status(200).send({ message: "Product has been successfully update.", error: false })
     } catch (error) {
         handleError(error.message, 400, res)
     };
 };
+
 
 
 exports.removeProduct = async (req, res) => {

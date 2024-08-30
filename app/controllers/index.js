@@ -16,4 +16,5 @@ module.exports = {
 
     orders: require('./order'),
 
+    discounts: require('./discount'),
 }

@@ -10,6 +10,10 @@ const productCategorySchema = Schema({
   description: {
     type: String,
   },
+  parent_category_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProductCategory'
+  },
   category_img: {
     type: String,
   },

@@ -33,8 +33,8 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(bodyParser.json({limit:'50mb'})); 
-app.use(bodyParser.urlencoded({extended:true, limit:'50mb'})); 
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('tiny'));
 
 // Route setup
@@ -58,6 +58,8 @@ require('./app/routes/wishList')(app);
 require('./app/routes/prescription')(app);
 
 require('./app/routes/order')(app);
+require('./app/routes/discount')(app);
+
 
 
 

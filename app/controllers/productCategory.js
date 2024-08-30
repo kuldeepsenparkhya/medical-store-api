@@ -5,7 +5,7 @@ const { createProductCategory, updateProductCategory } = require("./joiValidator
 
 exports.create = async (req, res) => {
     try {
-        const { name, description, } = req.body
+        const { name, description, parent_category_id } = req.body
         const { error } = createProductCategory.validate(req.body, { abortEarly: false })
 
         if (error) {
@@ -14,7 +14,7 @@ exports.create = async (req, res) => {
         }
 
         let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
-        const data = { name, description, category_img: category_img }
+        const data = { name, description, category_img: category_img, parent_category_id }
         const newCategory = new ProductCategory(data);
 
         await newCategory.save();
@@ -41,10 +41,9 @@ exports.find = async (req, res) => {
         } : {};
 
         const productCategory = await ProductCategory.find({ ...searchFilter })
-            .skip((page - 1) * limit)  // Skip the records for previous pages
-            .limit(parseInt(limit))   // Limit the number of records returned
-        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
-
+            .populate('parent_category_id')
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
 
         const totalCount = await ProductCategory.countDocuments()
 

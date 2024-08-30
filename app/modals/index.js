@@ -33,6 +33,8 @@ const db = {
   
   
   Order:require('./order'),
+  Discount:require('./discount'),
+
 
 
 };

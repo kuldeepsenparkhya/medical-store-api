@@ -3,12 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, getPagination } = require("../utils/helper");
-const { Order } = require('../modals');
+const { Order, Media } = require('../modals');
 
 
 exports.create = async (req, res) => {
     try {
-        const { products } = req.body
+        const { products, address_id } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
 
         if (error) {
@@ -26,15 +26,12 @@ exports.create = async (req, res) => {
             totalPrice += item.total;
         });
 
-        const data = { products: newData, totalPrice, user_id: req.user._id }
+        const data = { products: newData, totalPrice, user_id: req.user._id, address_id }
         const newOrder = new Order(data);
 
         await newOrder.save();
 
-
-
         generateInvoice(data.user_id)
-
 
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
@@ -48,7 +45,7 @@ exports.findAllOrders = async (req, res) => {
         const orders = await Order.find({})
             .populate({
                 path: 'products.product_id',
-                select: 'title description consume_type return_policy expiry_date manufacturing_date ',
+                // select: 'title description consume_type return_policy expiry_date manufacturing_date ',
                 model: 'Product'
             })
             .populate({
@@ -61,6 +58,23 @@ exports.findAllOrders = async (req, res) => {
                 model: 'User'
             })
 
+
+
+        // const mediaIDs = []
+        // for (let i = 0; i < orders.length; i++) {
+        //     const order = orders[i];
+        //     if (order.products && order.products.length > 0) {
+        //         for (let j = 0; j < order.products.length; j++) {
+        //             const product = order.products[j];
+        //             console.log('Product>>>>:', product.product_id?._id);
+        //             const media = await Media.find({ product_id: product.product_id?._id })
+        //             mediaIDs.push(media)
+        //         }
+        //     }
+        // }
+
+
+        // console.log('mediaIDs<>>>>>>>>>>>>>>>>>', mediaIDs);
 
         const totalCount = await Order.countDocuments();  // Get total count of orders for pagination
         // Pagination result helper function
@@ -75,15 +89,8 @@ exports.findAllOrders = async (req, res) => {
 };
 
 
-
-
-
 exports.findAllUserOrders = async (req, res) => {
     try {
-
-
-
-
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 10;
 
@@ -102,6 +109,11 @@ exports.findAllUserOrders = async (req, res) => {
             .populate({
                 path: 'products.product_variant_id',
                 model: 'Variant'
+            })
+            .populate({
+                path: 'products.media_id',
+                select: 'url',
+                model: 'Media'
             })
             .populate({
                 path: 'user_id',
