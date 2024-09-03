@@ -6,6 +6,7 @@ const { createProductCategory, updateProductCategory } = require("./joiValidator
 exports.create = async (req, res) => {
     try {
         const { name, description, parent_category_id } = req.body
+
         const { error } = createProductCategory.validate(req.body, { abortEarly: false })
 
         if (error) {
@@ -13,8 +14,12 @@ exports.create = async (req, res) => {
             return
         }
 
+        const validParentCategoryId = (parent_category_id && parent_category_id !== '') ? parent_category_id : null;
+
+
+
         let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
-        const data = { name, description, category_img: category_img, parent_category_id }
+        const data = { name, description, category_img: category_img, parent_category_id: validParentCategoryId }
         const newCategory = new ProductCategory(data);
 
         await newCategory.save();

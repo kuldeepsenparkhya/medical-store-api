@@ -1,24 +1,22 @@
-const Joi = require("joi")
+const Joi = require("joi");
+const { default: mongoose } = require("mongoose");
 
-const createProductCategory = Joi.object().keys({
+
+
+
+const createProductCategory = Joi.object({
     name: Joi.string().required(),
-    description: Joi.string(),
-    parent_category_id: Joi.string(),
+    description: Joi.string().allow(''),
+    parent_category_id: Joi.string().allow(null).allow(''), // Allow valid ObjectId or null
+});
 
-})
-
-const updateProductCategory = Joi.object().keys({
-    name: Joi.string(),
-    description: Joi.string(),
-    parent_category_id: Joi.string(),
-
-})
-
-
-
+const updateProductCategory = Joi.object({
+    name: Joi.string().allow(''),
+    description: Joi.string().allow(''),
+    parent_category_id: Joi.string().allow(null).allow(''), // Allow valid ObjectId or null
+});
 
 module.exports = {
     createProductCategory,
     updateProductCategory,
-
-}
+};

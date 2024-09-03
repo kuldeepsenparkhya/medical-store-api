@@ -12,7 +12,9 @@ const productCategorySchema = Schema({
   },
   parent_category_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'ProductCategory'
+    ref: 'ProductCategory',
+    default: null,
+    required: false,
   },
   category_img: {
     type: String,
