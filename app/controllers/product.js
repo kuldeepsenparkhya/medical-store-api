@@ -1,5 +1,5 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
-const { Product, Media, ProductVariant, Brochure, Order } = require("../modals");
+const { Product, Media, ProductVariant, Brochure, Order, Inventory } = require("../modals");
 const { updateProductSchema } = require("./joiValidator/productJoi.Schema");
 
 const path = require("path");
@@ -21,7 +21,7 @@ exports.create = async (req, res) => {
         await newProduct.save();
 
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
-        
+
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => ({
@@ -63,6 +63,19 @@ exports.create = async (req, res) => {
             // Save file metadata
             await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
         }
+
+        const varients = await ProductVariant.find({ productId: newProduct._id })
+
+        const inventory = varients?.map(async (item) => {
+            const data = {
+                product_variant_id: item._id,
+                product_id: item.productId,
+                total_variant_quantity: item.quantity,
+            }
+
+            const newInventory = new Inventory(data);
+            await newInventory.save();
+        })
 
         // Send response
         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
@@ -195,7 +208,13 @@ exports.findOne = async (req, res) => {
         const { id } = req.params;
         const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id')
         const media = await Media.find({ product_id: product._id })
+        const brochure = await Brochure.find({ product_id: product._id })
+
+        const variants = await ProductVariant.find({ productId: product._id });
         product._doc.media = media;
+        product._doc.variants = variants;
+        product._doc.brochure = brochure;
+
 
         handleResponse(res, product._doc, 'Retrieved Product', 200)
     } catch (error) {

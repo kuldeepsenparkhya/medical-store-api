@@ -3,6 +3,8 @@ const Joi = require('joi');
 // Defining Joi schema for validation
 const orderVailidationSchema = Joi.object({
     address_id: Joi.string().required(),
+    shipping_charge: Joi.number().min(0).required(),
+
     products: Joi.array().items(Joi.object({
         product_id: Joi.string().required(),
         media_id: Joi.string().required(),

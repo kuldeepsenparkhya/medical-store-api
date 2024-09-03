@@ -40,7 +40,15 @@ const orderSchema = Schema({
             min: 0
         }
     }],
-    totalPrice: {
+    subTotal: {
+        type: Number,
+        min: 0
+    },
+    shippingCost: {
+        type: Number,
+        min: 0
+    },
+    total: {
         type: Number,
         min: 0
     },

@@ -2,13 +2,13 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const { handleError, handleResponse, generateInvoice, getPagination } = require("../utils/helper");
-const { Order, Media } = require('../modals');
+const { handleError, handleResponse, generateInvoice, getPagination, sendMailer } = require("../utils/helper");
+const { Order, Media, Product, ProductVariant, User, AddressBook } = require('../modals');
 
 
 exports.create = async (req, res) => {
     try {
-        const { products, address_id } = req.body
+        const { products, address_id, shipping_charge } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
 
         if (error) {
@@ -21,22 +21,105 @@ exports.create = async (req, res) => {
             return item;
         })
 
-        let totalPrice = 0;
+        let subTotal = 0;
         newData.forEach(item => {
-            totalPrice += item.total;
+            subTotal += item.total;
         });
 
-        const data = { products: newData, totalPrice, user_id: req.user._id, address_id }
+        const grandTotal = subTotal + shipping_charge
+
+        const user = await User.findOne({ _id: req.user._id })
+        const address = await AddressBook.findOne({ _id: address_id })
+
+        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal }
+
         const newOrder = new Order(data);
 
         await newOrder.save();
 
-        generateInvoice(data.user_id)
+        const orderItems = await Promise.all(products.map(async (item) => {
+            const product = await Product.findOne({ _id: item.product_id });
+            const variant = await ProductVariant.findOne({ _id: item.product_variant_id });
+            product._doc.variant = variant;
+
+            return {
+                itemName: product.title,
+                quantity: item.quantity,
+                price: item.price
+            }
+        }));
+
+        const invoiceData = {
+            orderId: newOrder._id,
+            customerName: user?.name,
+            customerEmail: user?.email,
+            customerMobile: user?.mobile,
+
+            address: {
+                address: address.address,
+                state: address.state,
+                city: address.city,
+                pincode: address.pincode,
+            },
+            subTotal,
+            shipping_charge,
+            grandTotal,
+            orderItems,
+            invoiceDate: newOrder.createdAt
+        }
+
+        generateInvoice(invoiceData)
+
+        const subject = 'Thank You for Your Purchase!';
+        const message = `
+                    <div style="margin:auto; width:70%">
+                        <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
+                        <div style="margin:50px auto; width:60%; padding:20px 0">
+                            <p style="font-size:25px">Hello ${req.user.name},</p>
+                            <p>Thank you for your purchase! We’re excited to let you know that your order <strong>#${newOrder._id}</strong> has been received and is now being processed.</p>
+                            <p>Here are the details of your order:</p>
+
+                            <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Item</th>
+                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Quantity</th>
+                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${orderItems.map(item => `
+                                <tr>
+                                    <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
+                                    <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
+                                    <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
+                                </tr>
+                                `).join('')}
+                            </tbody>
+                            </table>
+
+                            <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
+                            <p>Shipping: <strong>$${shipping_charge}</strong></p>
+                            <p>Total: <strong>$${grandTotal}</strong></p>
+
+                            <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
+
+                            <p style="font-size:0.9em;">Thank you for shopping with us!</p>
+                            <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
+
+                            <hr style="border:none; border-top:1px solid #eee" />
+                            <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
+                        </div>
+                        </div>
+                    </div>
+                    `;
+
+        await sendMailer(req.user.email, subject, message, res);
 
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
     } catch (error) {
-        handleError(error, 400, res);
+        handleError(error.message, 400, res);
     }
 };
 
