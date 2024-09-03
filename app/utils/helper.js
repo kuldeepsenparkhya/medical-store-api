@@ -10,6 +10,7 @@ const path = require('path'); // Import the path module
 
 
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
+const { Product } = require('../modals');
 
 
 exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({
@@ -49,14 +50,6 @@ exports.getPagination = async (query, fetchedData, totalCount) => {
 
     return paginationInfo;
 };
-
-
-
-
-
-
-
-
 
 
 
@@ -208,3 +201,51 @@ exports.downloadInvoice = (orders) => {
     // Finalize PDF file
     doc.end();
 }
+
+
+exports.getProducts = async (productIds) => {
+    try {
+        // Convert string IDs to ObjectId
+        const objectIds = productIds.map(id => new mongoose.Types.ObjectId(id));
+        console.log('objectIds>>>>>>>', objectIds);
+
+        const pipeline = [
+            // Match only the documents with _id in the provided array of ObjectIds
+            { $match: { _id: { $in: objectIds } } },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'media',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'mediaFiles'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$mediaFiles', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } }
+        ];
+
+        const products = await Product.aggregate(pipeline);
+
+        return products;
+    } catch (error) {
+        console.error('Error occurred while fetching products:', error);
+        throw error; // Optional: rethrow error to handle it further up the call stack
+    }
+};

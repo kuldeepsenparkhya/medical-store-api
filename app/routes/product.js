@@ -9,8 +9,9 @@ module.exports = app => {
     router.get('/products/:id', products.findOne)
     router.delete('/products/:id', products.removeProduct)
 
+    router.patch('/products/:id', filesUploader, products.update)
 
-
+    router.get('/products/top/sale', products.getTopSellingProducts)
 
     app.use('/api', router);
 }

@@ -17,7 +17,7 @@ const productSchema = Schema({
   consume_type: {
     type: String,
     required: true,
-    enum: ['oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal'],
+    // enum: ['oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal'],
   },
   return_policy: {
     type: String,

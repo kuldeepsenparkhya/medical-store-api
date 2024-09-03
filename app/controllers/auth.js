@@ -32,6 +32,7 @@ exports.login = async (req, res) => {
 
             res.status(200).send({
                 token: token,
+                name: user.name,
                 role: user.role,
                 message: 'LoggedIn Successfully',
                 error: false

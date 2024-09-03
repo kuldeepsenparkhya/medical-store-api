@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const { authJWT } = require('./app/middlewares/auth');
 const { PORT } = require('./app/config/config');
-// const HOST = '192.168.0.23';
+const HOST = '192.168.0.23';
 // Initialize Passport
 require('./app/config/passport-setup'); // Ensure this is required to initialize Passport
 
@@ -28,7 +28,7 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001", ' https://janhitchemist.netlify.app'],
+    origin: ["http://localhost:3000", "http://localhost:3001", ' https://janhitchemist.netlify.app','https://janhit-chamist-admin.netlify.app/'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
     credentials: true
 }));
@@ -70,6 +70,6 @@ app.get('*', (req, res) => {
     });
 });
 
-// app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
-app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
+app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
+// app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
 

@@ -1,6 +1,10 @@
-const { handleError, handleResponse, getPagination } = require("../utils/helper");
-const { Product, Media, ProductVariant, Brochure } = require("../modals");
+const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
+const { Product, Media, ProductVariant, Brochure, Order } = require("../modals");
 const { updateProductSchema } = require("./joiValidator/productJoi.Schema");
+
+const path = require("path");
+const fs = require('fs').promises;
+
 
 
 exports.create = async (req, res) => {
@@ -12,20 +16,7 @@ exports.create = async (req, res) => {
             return
         }
 
-        const productData = {
-            title,
-            description,
-            sku,
-            quantity,
-            consume_type,
-            return_policy,
-            product_category_id,
-            brand_id,
-            expiry_date,
-            manufacturing_date,
-            inStock,
-            sideEffects
-        };
+        const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
 
         const newProduct = new Product(productData);
         await newProduct.save();
@@ -81,7 +72,6 @@ exports.create = async (req, res) => {
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
 };
-
 
 
 exports.find = async (req, res) => {
@@ -217,11 +207,8 @@ exports.findOne = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-
         const { id } = req.params;
-
-        const { title, description, sku, quantity, consume_type, return_policy, product_category_id,
-            brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants } = req?.body;
+        const BASE_PATH = path.join(__dirname, "../upload");
 
         const product = await Product.findOne({ _id: id })
         if (!product) {
@@ -229,21 +216,106 @@ exports.update = async (req, res) => {
             return
         }
 
-        if (!variants) {
-            handleError('Product variants are missing', 400, res);
-            return
+        const { title, description, sku, quantity, consume_type, return_policy, product_category_id,
+            brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants, remove_variant, remove_media, remove_brochure } = req?.body;
+
+        let parsedVariants = [];
+
+        parsedVariants = typeof variants === 'string' ? JSON?.parse(variants) : variants
+
+        const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+
+        // Prepare the update operations
+        const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
+
+            const updatedData = {
+                size: variant.size,
+                price: variant.price,
+                discounted_price: variant.discounted_price,
+                quantity: variant.quantity
+            };
+
+            // Update each variant by its ID and product ID
+            return ProductVariant.updateOne(
+                { _id: variant.id, productId: product._id },
+                { $set: updatedData }
+            );
+        }) : ''
+
+        // Wait for all update operations to complete
+        await Promise.all(updatePromises);
+
+        const correctedStr = remove_variant?.replace(/'/g, '"');
+        const varientIds = correctedStr && JSON?.parse(correctedStr);
+
+        const correctedMediaStr = remove_media?.replace(/'/g, '"');
+        const mediaIds = correctedMediaStr && JSON?.parse(correctedMediaStr);
+
+        varientIds?.map(async (v) => await ProductVariant.deleteOne({ _id: v, productId: product._id }))
+
+        mediaIds?.map(async (m) => {
+            const media = await Media.findOne({ _id: m, product_id: product._id })
+            const fileName = path.basename(media?.url);
+
+            const filePath = path.join(BASE_PATH, fileName);
+            try {
+                await fs.access(filePath);
+                await fs.unlink(path.join(BASE_PATH, fileName));
+
+            } catch (error) {
+                console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
+            }
+
+            await Media.deleteOne({ _id: m, product_id: product._id })
+        })
+
+
+        const files = [];
+        if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
+            req?.files?.productFiles.forEach((val) => {
+                files.push({
+                    url: `/media/${val.filename}`,
+                    mimetype: val.mimetype,
+                    product_id: product._id
+                });
+            });
+
+            // Save file metadata
+            await Media.insertMany(files); // Use insertMany to handle multiple documents
         }
 
-        // Update the basic product information
-        const updatedData = {
-            title, description, sku, quantity, consume_type, return_policy,
-            product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects
-        };
+        // Process files
+        const brochures = [];
+        if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
+            req?.files?.brochure.forEach((val) => {
+                brochures.push({
+                    url: `/broucher/${val.filename}`,
+                    mimetype: val.mimetype,
+                    product_id: product._id
+                });
+            });
 
-        await Product.updateOne({ _id: id }, updatedData, { new: true });
+
+            const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
 
 
+            const fileName = path.basename(brochure?.url);
+            const filePath = path.join(BASE_PATH, fileName);
+            try {
+                await fs.access(filePath);
+                await fs.unlink(path.join(BASE_PATH, fileName));
 
+                await Brochure.deleteOne({ _id: remove_brochure, product_id: product._id })
+
+            } catch (error) {
+                console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
+            }
+
+            // Save file metadata
+            await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
+        }
+
+        await Product.updateOne({ _id: id }, productData, { new: true });
 
         res.status(200).send({ message: "Product has been successfully update.", error: false })
     } catch (error) {
@@ -252,12 +324,10 @@ exports.update = async (req, res) => {
 };
 
 
-
 exports.removeProduct = async (req, res) => {
     try {
         const { id } = req.params;
         const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id')
-
 
         if (!product) {
             handleError('Invailid product ID.', 400, res)
@@ -269,4 +339,65 @@ exports.removeProduct = async (req, res) => {
     } catch (error) {
         handleError(error.message, 400, res)
     };
+};
+
+
+exports.getTopSellingProducts = async (req, res) => {
+    try {
+        const orders = await Order.find({})
+
+        // Helper function to aggregate product quantities
+        const aggregateProductQuantities = (orders) => {
+            return orders.reduce((acc, order) => {
+                order.products.forEach(({ product_id, quantity }) => {
+                    acc[product_id] = (acc[product_id] || 0) + quantity;
+                });
+                return acc;
+            }, {});
+        };
+
+        // Helper function to sort products by quantity
+        const sortProductsByQuantity = (productQuantities) => {
+            return Object.entries(productQuantities)
+                .map(([product_id, quantity]) => ({ product_id, quantity }))
+                .sort((a, b) => b.quantity - a.quantity);
+        };
+
+
+        const productQuantities = aggregateProductQuantities(orders);
+        const sortedProducts = sortProductsByQuantity(productQuantities);
+
+
+        // Fetch product details for the sorted products
+        const productIds = sortedProducts.map(product => product.product_id);
+        const products = await Product.find({ _id: { $in: productIds } })
+
+        // Create a map for quick lookup of product details
+        const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+
+        const getProductIds = await sortedProducts.map(product => product.product_id)
+
+        // console.log('getProductIds???????????', getProductIds);
+
+        const x = await getProducts(getProductIds)
+
+
+        // Map sorted products to include product details
+        const result = sortedProducts.map(product => {
+            const productDetails = productMap.get(product.product_id.toString());
+            return {
+                ...product,
+                details: productDetails || null
+            };
+        });
+
+        // console.log('result>>>>>>>>>>', result);
+
+        // Send the result as the response
+        res.send({ result: x });
+
+    } catch (error) {
+        handleError(error.message, 400, res);
+    }
 };
