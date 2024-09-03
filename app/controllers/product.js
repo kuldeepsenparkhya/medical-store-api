@@ -10,7 +10,6 @@ const fs = require('fs').promises;
 exports.create = async (req, res) => {
     try {
         const { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants } = req?.body;
-
         if (!variants) {
             handleError('Product variants are missing', 400, res);
             return
@@ -22,7 +21,7 @@ exports.create = async (req, res) => {
         await newProduct.save();
 
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
-
+        
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => ({

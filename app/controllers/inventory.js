@@ -1,5 +1,5 @@
 const { Inventory } = require("../modals")
-const { handleResponse, getPagination } = require("../utils/helper")
+const { handleResponse, getPagination, handleError } = require("../utils/helper")
 
 
 
@@ -19,12 +19,15 @@ exports.getInventory = async (req, res) => {
             .limit(parseInt(limit))
 
 
-        const totalCount = await inventories.countDocuments()
-
+        const totalCount = await Inventory.countDocuments()
         const getPaginationResult = await getPagination(req.query, inventories, totalCount);
 
         handleResponse(res, getPaginationResult, 200)
-    } catch (error) {
 
+
+    } catch (error) {
+        console.log('error>>>>>>>>>>', error);
+
+        handleError(error, 400, res)
     }
 }
