@@ -27,8 +27,11 @@ exports.find = async (req, res) => {
     try {
         const { id } = req.params
         const address = await AddressBook.find({ user_id: id })
+
+        const addressData = address.filter((data) => data.isDeleted === false);
+
         const totalCount = await AddressBook.countDocuments()
-        const getPaginationResult = await getPagination(req.query, address, totalCount);
+        const getPaginationResult = await getPagination(req.query, addressData, totalCount);
 
         handleResponse(res, getPaginationResult, 200)
     } catch (error) {
@@ -48,8 +51,11 @@ exports.findOne = async (req, res) => {
 
 exports.updateAddress = async (req, res) => {
     try {
+
         const { id } = req.params;
+
         const { bill_to, address, land_mark, city, state, pincode, mobile, user_id, address_type, latitude, longitude } = req.body
+
         const data = { bill_to, address, land_mark, city, state, pincode, mobile, user_id, address_type, latitude, longitude };
 
         const getAddress = await AddressBook.findOne({ _id: id });
