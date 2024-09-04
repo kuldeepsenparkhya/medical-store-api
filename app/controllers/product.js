@@ -229,7 +229,6 @@ exports.find = async (req, res) => {
 };
 
 
-
 exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
@@ -441,6 +440,144 @@ exports.getTopSellingProducts = async (req, res) => {
 
         // Send the result as the response
         res.send({ result: x });
+
+    } catch (error) {
+        handleError(error.message, 400, res);
+    }
+};
+
+
+exports.getAllTrashProducts = async (req, res) => {
+    try {
+        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName } = req.query;
+        const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+        const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
+        // Construct search filter
+        const searchFilter = q ? [
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            {
+                $unwind: { path: '$brand', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+            {
+                $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $match: {
+                    $or: [
+                        { 'brand.name': { $regex: new RegExp(q, 'i') } },
+                        { name: { $regex: new RegExp(q, 'i') } },
+                        { description: { $regex: new RegExp(q, 'i') } },
+                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } }
+                    ]
+                }
+            }
+        ] : [];
+
+        // Add filters
+        if (minPrice || maxPrice || categoryName) {
+            searchFilter.push({
+                $match: {
+                    ...(minPrice && { price: { $gte: parseFloat(minPrice) } }),
+                    ...(maxPrice && { price: { $lte: parseFloat(maxPrice) } }),
+                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } })
+                }
+            });
+        }
+
+        const pipeline = [
+            ...searchFilter,
+            { $skip: skip },
+            { $limit: parseInt(limit, 10) },
+            {
+                $lookup: {
+                    from: 'variants',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'variant'
+                },
+
+            },
+
+            {
+                $lookup: {
+                    from: 'brochures',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'brochures'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'media',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'mediaFiles'
+                }
+            },
+
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+
+            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $sort: { createdAt: sortOrder } }
+        ];
+
+        const products = await Product.aggregate(pipeline);
+
+        const discount = products.map((item) => {
+            item.variant.map(async (varient) => {
+                const discount = await Discount.findOne({ discounted_id: varient.discounted_id })
+                console.log('products>>>>>>>>>>>', discount);
+            })
+        })
+
+
+        // Fetch discount details for each variant
+        const productsWithDiscounts = await Promise.all(products.map(async (product) => {
+            const variantsWithDiscounts = await Promise.all(product.variant.map(async (variant) => {
+                const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
+                return { ...variant, discount };
+            }));
+            return { ...product, variant: variantsWithDiscounts };
+        }));
+
+        const getTrashProducts = productsWithDiscounts.filter((value) => value.isDeleted === false)
+
+        const totalCount = await Product.countDocuments();
+
+        const getPaginationResult = await getPagination(req.query, getTrashProducts, totalCount);
+
+        handleResponse(res, getPaginationResult, 200);
 
     } catch (error) {
         handleError(error.message, 400, res);
