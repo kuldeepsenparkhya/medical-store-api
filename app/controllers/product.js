@@ -1,5 +1,5 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
-const { Product, Media, ProductVariant, Brochure, Order, Inventory } = require("../modals");
+const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount } = require("../modals");
 const { updateProductSchema } = require("./joiValidator/productJoi.Schema");
 
 const path = require("path");
@@ -18,16 +18,21 @@ exports.create = async (req, res) => {
         const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
 
         const newProduct = new Product(productData);
-        await newProduct.save();
 
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
 
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
-            const variantData = newVarient.map(variant => ({
-                ...variant,
-                productId: newProduct._id // Associate the variant with the new product
-            }));
+            const variantData = newVarient.map(variant => {
+                variant.discounted_id = variant.discounted_id ? variant.discounted_id : null
+                const data = {
+                    ...variant,
+                    productId: newProduct._id
+                }
+                return data
+            }
+
+            );
 
             // Insert all variants in one go
             await ProductVariant.insertMany(variantData);
@@ -76,6 +81,7 @@ exports.create = async (req, res) => {
             const newInventory = new Inventory(data);
             await newInventory.save();
         })
+        await newProduct.save();
 
         // Send response
         handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
@@ -91,7 +97,6 @@ exports.find = async (req, res) => {
         const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName } = req.query;
         const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
-
         // Construct search filter
         const searchFilter = q ? [
             {
@@ -149,8 +154,10 @@ exports.find = async (req, res) => {
                     localField: '_id',
                     foreignField: 'productId',
                     as: 'variant'
-                }
+                },
+
             },
+
             {
                 $lookup: {
                     from: 'brochures',
@@ -191,9 +198,28 @@ exports.find = async (req, res) => {
         ];
 
         const products = await Product.aggregate(pipeline);
+
+        const discount = products.map((item) => {
+            item.variant.map(async (varient) => {
+                const discount = await Discount.findOne({ discounted_id: varient.discounted_id })
+                console.log('products>>>>>>>>>>>', discount);
+            })
+        })
+
+
+        // Fetch discount details for each variant
+        const productsWithDiscounts = await Promise.all(products.map(async (product) => {
+            const variantsWithDiscounts = await Promise.all(product.variant.map(async (variant) => {
+                const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
+                return { ...variant, discount };
+            }));
+            return { ...product, variant: variantsWithDiscounts };
+        }));
+
+
         const totalCount = await Product.countDocuments();
 
-        const getPaginationResult = await getPagination(req.query, products, totalCount);
+        const getPaginationResult = await getPagination(req.query, productsWithDiscounts, totalCount);
 
         handleResponse(res, getPaginationResult, 200);
 
@@ -201,6 +227,7 @@ exports.find = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
+
 
 
 exports.findOne = async (req, res) => {
@@ -249,7 +276,7 @@ exports.update = async (req, res) => {
             const updatedData = {
                 size: variant.size,
                 price: variant.price,
-                discounted_price: variant.discounted_price,
+                discounted_id: variant.discounted_id,
                 quantity: variant.quantity
             };
 

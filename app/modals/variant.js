@@ -6,9 +6,11 @@ const productVariantSchema = Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product'
     },
-    discount_id: {
+    discounted_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Discount'
+        ref: 'Discount',
+        require: false,
+        default: null,
     },
     size: {
         type: String,
@@ -29,7 +31,7 @@ const productVariantSchema = Schema({
     inStock: {
         type: Boolean,
         default: true,
-      },
+    },
 
 }, {
     timestamps: true

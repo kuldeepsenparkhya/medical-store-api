@@ -2,8 +2,6 @@ const { Media } = require("../modals");
 const { handleError } = require("../utils/helper");
 
 
-
-
 exports.addProductMedia = async (req, res) => {
     try {
         const { product_id } = req.params;
@@ -31,7 +29,6 @@ exports.addProductMedia = async (req, res) => {
                     product_id: media.product_id
                 });
             });
-
             // Save file metadata
             await Media.insertMany(files); // Use insertMany to handle multiple documents
         }
