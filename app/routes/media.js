@@ -11,7 +11,7 @@ module.exports = app => {
 
 
     router.post('/products/media/:id', media.addProductMedia)
-    router.get('/getedia/:id', media.getMedia)
+    router.get('/getmedia/:id', media.getMedia)
 
 
     router.patch('/products/media/:id', fileUploader, media.updateProductMedia)
