@@ -332,20 +332,10 @@ exports.getProducts = async (productIds) => {
     try {
         // Convert string IDs to ObjectId
         const objectIds = productIds.map(id => new mongoose.Types.ObjectId(id));
-        console.log('objectIds>>>>>>>', objectIds);
 
         const pipeline = [
-            // Match only the documents with _id in the provided array of ObjectIds
             { $match: { _id: { $in: objectIds } } },
-            {
-                $lookup: {
-                    from: 'productcategories',
-                    localField: 'product_category_id',
-                    foreignField: '_id',
-                    as: 'productCategory'
-                }
-            },
-            {
+                {
                 $lookup: {
                     from: 'media',
                     localField: '_id',
@@ -355,15 +345,14 @@ exports.getProducts = async (productIds) => {
             },
             {
                 $lookup: {
-                    from: 'brands',
-                    localField: 'brand_id',
-                    foreignField: '_id',
-                    as: 'brand'
+                    from: 'variants',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'productVariant'
                 }
             },
-            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+      
             { $unwind: { path: '$mediaFiles', preserveNullAndEmptyArrays: true } },
-            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } }
         ];
 
         const products = await Product.aggregate(pipeline);

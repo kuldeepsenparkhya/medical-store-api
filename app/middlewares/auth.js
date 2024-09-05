@@ -41,11 +41,11 @@ exports.adminAccess = async (req, res, next) => {
       return next();
     }
     else {
-      handleError('Unauthorized access!', 401, res)
+      handleError('Access denied. Admins only.!', 401, res)
       return;
     }
   } catch (error) {
-    handleError('Unauthorized access!', 401, res)
+    handleError('Access denied. Admins only.!', 401, res)
     return;
   }
 };

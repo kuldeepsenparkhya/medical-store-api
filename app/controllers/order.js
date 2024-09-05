@@ -2,19 +2,25 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const { handleError, handleResponse, generateInvoice, getPagination, sendMailer } = require("../utils/helper");
-const { Order, Media, Product, ProductVariant, User, AddressBook } = require('../modals');
+const { handleError, handleResponse, generateInvoice, sendMailer } = require("../utils/helper");
+const { Order, Product, ProductVariant, User, AddressBook } = require('../modals');
 
 
 exports.create = async (req, res) => {
     try {
         const { products, address_id, shipping_charge } = req.body
-        const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
 
+        const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
         if (error) {
             handleError(error, 400, res);
             return
         };
+
+        const address = await AddressBook.findOne({ _id: address_id })
+        if (!address) {
+            handleError('Invalid address ID', 400, res);
+            return;
+        }
 
         const newData = products.map((item, i) => {
             item.total = item.quantity * item.price
@@ -29,7 +35,6 @@ exports.create = async (req, res) => {
         const grandTotal = subTotal + shipping_charge
 
         const user = await User.findOne({ _id: req.user._id })
-        const address = await AddressBook.findOne({ _id: address_id })
 
         const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal }
 
@@ -125,93 +130,92 @@ exports.create = async (req, res) => {
 
 exports.findAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find({})
-            .populate({
-                path: 'products.product_id',
-                // select: 'title description consume_type return_policy expiry_date manufacturing_date ',
-                model: 'Product'
-            })
-            .populate({
-                path: 'products.product_variant_id',
-                model: 'Variant'
-            })
-            .populate({
-                path: 'user_id',
-                select: 'name email mobile',
-                model: 'User'
-            })
+        // Retrieve pagination and filter parameters from query
+        const { page = 1, limit = 10, period = '3months' } = req.query;
 
+        // Convert query parameters to numbers
+        const pageNumber = parseInt(page, 10);
+        const pageSize = parseInt(limit, 10);
 
+        // Calculate date range based on period
+        const currentDate = new Date();
+        let startDate;
 
-        // const mediaIDs = []
-        // for (let i = 0; i < orders.length; i++) {
-        //     const order = orders[i];
-        //     if (order.products && order.products.length > 0) {
-        //         for (let j = 0; j < order.products.length; j++) {
-        //             const product = order.products[j];
-        //             console.log('Product>>>>:', product.product_id?._id);
-        //             const media = await Media.find({ product_id: product.product_id?._id })
-        //             mediaIDs.push(media)
-        //         }
-        //     }
-        // }
+        switch (period) {
+            case 'monthly':
+                startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                break;
+            case '3months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+                break;
+            case '6months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 6));
+                break;
+            default:
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // Default to 3 months
+        }
 
+        // Fetch orders with pagination and date range filter
+        const orders = await Order.find({ createdAt: { $gte: startDate } })
+            .skip((pageNumber - 1) * pageSize)
+            .limit(pageSize)
+            .lean();
 
-        // console.log('mediaIDs<>>>>>>>>>>>>>>>>>', mediaIDs);
+        // Count total orders for pagination
+        const totalOrders = await Order.countDocuments({ createdAt: { $gte: startDate } });
 
-        const totalCount = await Order.countDocuments();  // Get total count of orders for pagination
-        // Pagination result helper function
-        const getPaginationResult = await getPagination(req.query, orders, totalCount);
-        // Send response
-        handleResponse(res, getPaginationResult, 'All orders have been retrieved successfully.', 200);
+        // Process each order
+        const processedOrders = await Promise.all(orders.map(async (order) => {
+            // Process each product in the order
+            const processedProducts = await Promise.all(order.products.map(async (product) => {
+                // Fetch product details
+                const productDetails = await Product.findOne({ _id: product.product_id }).lean();
+                // Fetch product variant details
+                const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+                // Assemble the response format
+                return {
+                    product: {
+                        _id: productDetails._id,
+                        title: productDetails.title,
+                        description: productDetails.description,
+                        consume_type: productDetails.consume_type,
+                        return_policy: productDetails.return_policy,
+                        product_category_id: productDetails.product_category_id,
+                        brand_id: productDetails.brand_id,
+                        expiry_date: productDetails.expiry_date,
+                        manufacturing_date: productDetails.manufacturing_date,
+                        sideEffects: productDetails.sideEffects,
+                    },
+                    product_variant: {
+                        _id: productVariantDetails._id,
+                        productId: productVariantDetails.productId,
+                        discounted_id: productVariantDetails.discounted_id,
+                        size: productVariantDetails.size,
+                        color: productVariantDetails.color,
+                        price: productVariantDetails.price,
+                    },
+                    media_id: product.media_id,
+                    quantity: product.quantity,
+                    price: product.price,
+                    _id: product._id,
+                };
+            }));
 
-    } catch (error) {
-        // Error handling
-        handleError(error, 400, res);
-    }
-};
+            return {
+                ...order,
+                products: processedProducts,
+            };
+        }));
 
-
-exports.findAllUserOrders = async (req, res) => {
-    try {
-        const page = parseInt(req.query.page, 10) || 1;
-        const limit = parseInt(req.query.limit, 10) || 10;
-
-        // Calculate the skip value based on current page and limit
-        const skip = (page - 1) * limit;
-
-        // Fetch the paginated orders with populated fields
-        const orders = await Order.find({ user_id: req.user._id })
-            .skip(skip)
-            .limit(limit)
-            .populate({
-                path: 'products.product_id',
-                select: 'title description consume_type return_policy expiry_date manufacturing_date',
-                model: 'Product'
-            })
-            .populate({
-                path: 'products.product_variant_id',
-                model: 'Variant'
-            })
-            .populate({
-                path: 'products.media_id',
-                select: 'url',
-                model: 'Media'
-            })
-            .populate({
-                path: 'user_id',
-                select: 'name email mobile',
-                model: 'User'
-            });
-
-        // Get the total count of orders for pagination
-        const totalCount = await Order.countDocuments({ user_id: req.user._id });
-
-        // Pagination result helper function
-        const paginationResult = await getPagination(req.query, orders, totalCount);
-
-        // Send response
-        handleResponse(res, paginationResult, 'User orders have been retrieved successfully.', 200);
+        // Send the response with pagination info
+        res.send({
+            orders: processedOrders,
+            currentPage: pageNumber,
+            limit: pageSize,
+            totalItems: totalOrders,
+            totalPages: Math.ceil(totalOrders / pageSize),
+            error: false
+        });
 
     } catch (error) {
         // Error handling
@@ -219,30 +223,167 @@ exports.findAllUserOrders = async (req, res) => {
     }
 };
 
+exports.findOrdersByUserId = async (req, res) => {
+    try {
+        // Retrieve pagination and filter parameters from query
+        const { page = 1, limit = 10, period = '3months' } = req.query;
+        // Convert query parameters to numbers
+        const pageNumber = parseInt(page, 10);
+        const pageSize = parseInt(limit, 10);
 
+        // Calculate date range based on period
+        const currentDate = new Date();
+        let startDate;
+
+        switch (period) {
+            case 'monthly':
+                startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                break;
+            case '3months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+                break;
+            case '6months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 6));
+                break;
+            default:
+            // startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // Default to 3 months
+        }
+
+        // Fetch orders with pagination and date range filter
+        const orders = await Order.find({ user_id: req.params.user_id, createdAt: { $gte: startDate } })
+            .skip((pageNumber - 1) * pageSize)
+            .limit(pageSize)
+            .lean();
+
+        // Count total orders for pagination
+        const totalOrders = await Order.countDocuments({ user_id: req.params.user_id, createdAt: { $gte: startDate } });
+
+        // Process each order
+        const processedOrders = await Promise.all(orders.map(async (order) => {
+            // Process each product in the order
+            const processedProducts = await Promise.all(order.products.map(async (product) => {
+                // Fetch product details
+                const productDetails = await Product.findOne({ _id: product.product_id }).lean();
+                // Fetch product variant details
+                const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+                // Assemble the response format
+                return {
+                    product: {
+                        _id: productDetails._id,
+                        title: productDetails.title,
+                        description: productDetails.description,
+                        consume_type: productDetails.consume_type,
+                        return_policy: productDetails.return_policy,
+                        product_category_id: productDetails.product_category_id,
+                        brand_id: productDetails.brand_id,
+                        expiry_date: productDetails.expiry_date,
+                        manufacturing_date: productDetails.manufacturing_date,
+                        sideEffects: productDetails.sideEffects,
+                    },
+                    product_variant: {
+                        _id: productVariantDetails._id,
+                        productId: productVariantDetails.productId,
+                        discounted_id: productVariantDetails.discounted_id,
+                        size: productVariantDetails.size,
+                        color: productVariantDetails.color,
+                        price: productVariantDetails.price,
+                    },
+                    media_id: product.media_id,
+                    quantity: product.quantity,
+                    price: product.price,
+                    _id: product._id,
+                };
+            }));
+
+            return {
+                ...order,
+                products: processedProducts,
+            };
+        }));
+
+        // Send the response with pagination info
+        res.send({
+            orders: processedOrders,
+            currentPage: pageNumber,
+            limit: pageSize,
+            totalItems: totalOrders,
+            totalPages: Math.ceil(totalOrders / pageSize),
+            error: false
+        });
+
+    } catch (error) {
+        // Error handling
+        handleError(error.message, 400, res);
+    }
+};
 
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
-        const order = await Order.findOne({ _id: id }).populate({
-            path: 'products.product_id',
-            select: 'title description',
-            model: 'Product'
-        }).populate({
-            path: 'products.product_variant_id',
-            model: 'Variant'
-        }).populate({
-            path: 'user_id',
-            select: 'name email mobile',
-            model: 'User'
-        }).exec();
+        // Fetch the order by its ID and populate necessary fields
+        const order = await Order.findOne({ _id: id }).lean();
 
-        handleResponse(res, order._doc, 200)
+        if (!order) {
+            return res.status(404).send({ message: 'Order not found' });
+        }
+
+        // Process each product in the order
+        const processedProducts = await Promise.all(order.products.map(async (product) => {
+            // Fetch product details
+            const productDetails = await Product.findOne({ _id: product.product_id }).lean();
+            // Fetch product variant details
+            const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+
+            return {
+                product: {
+                    _id: productDetails._id,
+                    title: productDetails.title,
+                    description: productDetails.description,
+                    consume_type: productDetails.consume_type,
+                    return_policy: productDetails.return_policy,
+                    product_category_id: productDetails.product_category_id,
+                    brand_id: productDetails.brand_id,
+                    expiry_date: productDetails.expiry_date,
+                    manufacturing_date: productDetails.manufacturing_date,
+                    sideEffects: productDetails.sideEffects,
+                },
+                product_variant: {
+                    _id: productVariantDetails._id,
+                    productId: productVariantDetails.productId,
+                    discounted_id: productVariantDetails.discounted_id,
+                    size: productVariantDetails.size,
+                    color: productVariantDetails.color,
+                    price: productVariantDetails.price,
+                },
+                media_id: product.media_id,
+                quantity: product.quantity,
+                price: product.price,
+                _id: product._id,
+            };
+        }));
+
+        // Construct the detailed order response
+        const detailedOrder = {
+            _id: order._id,
+            user_id: order.user_id,
+            address_id: order.address_id,
+            products: processedProducts,
+            subTotal: order.subTotal,
+            shippingCost: order.shippingCost,
+            total: order.total,
+            status: order.status,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            __v: order.__v,
+        };
+
+        // Send the detailed order response
+        handleResponse(res, detailedOrder, 'Retrieve Order data successfully.', 200)
+
     } catch (error) {
-        handleError(error.message, 400, res)
-    };
+        handleError(error.message, 400, res);
+    }
 };
-
 
 exports.cancelledOrder = async (req, res) => {
     try {
@@ -263,7 +404,6 @@ exports.cancelledOrder = async (req, res) => {
     }
 }
 
-
 exports.handleCancelledOrder = async (req, res) => {
     try {
         const { id } = req.params;
@@ -283,7 +423,6 @@ exports.handleCancelledOrder = async (req, res) => {
         handleError(error.message, 400, res)
     }
 }
-
 
 exports.downloadInvoice = async (req, res) => {
     try {
@@ -362,5 +501,106 @@ exports.downloadInvoice = async (req, res) => {
         });
     } catch (error) {
         handleError(error, 400, res);
+    }
+};
+
+exports.findAllUserOrders = async (req, res) => {
+    try {
+        // Retrieve pagination and filter parameters from query
+        const { page = 1, limit = 10, period = '3months' } = req.query;
+
+        // Convert query parameters to numbers
+        const pageNumber = parseInt(page, 10);
+        const pageSize = parseInt(limit, 10);
+
+        // Calculate date range based on period
+        const currentDate = new Date();
+        let startDate;
+
+        switch (period) {
+            case 'monthly':
+                startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                break;
+            case '3months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+                break;
+            case '6months':
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 6));
+                break;
+            default:
+                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // Default to 3 months
+        }
+
+        // Fetch orders with pagination and date range filter
+        const orders = await Order.find({
+            user_id: req.user._id,
+            // createdAt: { $gte: startDate }
+        })
+            .skip((pageNumber - 1) * pageSize)
+            .limit(pageSize)
+            .lean();
+
+        // Count total orders for pagination
+        const totalOrders = await Order.countDocuments({
+            user_id: req.user._id,
+            // createdAt: { $gte: startDate }
+        });
+
+        // Process each order
+        const processedOrders = await Promise.all(orders.map(async (order) => {
+            // Process each product in the order
+            const processedProducts = await Promise.all(order.products.map(async (product) => {
+                // Fetch product details
+                const productDetails = await Product.findOne({ _id: product.product_id }).lean();
+                // Fetch product variant details
+                const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+
+                // Assemble the response format
+                return {
+                    product: {
+                        _id: productDetails._id,
+                        title: productDetails.title,
+                        description: productDetails.description,
+                        consume_type: productDetails.consume_type,
+                        return_policy: productDetails.return_policy,
+                        product_category_id: productDetails.product_category_id,
+                        brand_id: productDetails.brand_id,
+                        expiry_date: productDetails.expiry_date,
+                        manufacturing_date: productDetails.manufacturing_date,
+                        sideEffects: productDetails.sideEffects,
+                    },
+                    product_variant: {
+                        _id: productVariantDetails._id,
+                        productId: productVariantDetails.productId,
+                        discounted_id: productVariantDetails.discounted_id,
+                        size: productVariantDetails.size,
+                        color: productVariantDetails.color,
+                        price: productVariantDetails.price,
+                    },
+                    media_id: product.media_id,
+                    quantity: product.quantity,
+                    price: product.price,
+                    _id: product._id,
+                };
+            }));
+
+            return {
+                ...order,
+                products: processedProducts,
+            };
+        }));
+
+        // Send the response with pagination info
+        res.send({
+            orders: processedOrders,
+            currentPage: pageNumber,
+            limit: pageSize,
+            totalItems: totalOrders,
+            totalPages: Math.ceil(totalOrders / pageSize),
+        });
+
+    } catch (error) {
+        // Error handling
+        handleError(error.message, 400, res);
     }
 };

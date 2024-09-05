@@ -390,7 +390,6 @@ exports.getTopSellingProducts = async (req, res) => {
     try {
         const orders = await Order.find({})
 
-        // Helper function to aggregate product quantities
         const aggregateProductQuantities = (orders) => {
             return orders.reduce((acc, order) => {
                 order.products.forEach(({ product_id, quantity }) => {
@@ -412,34 +411,40 @@ exports.getTopSellingProducts = async (req, res) => {
         const sortedProducts = sortProductsByQuantity(productQuantities);
 
 
+
+
+        console.log('productQuantities>>>>>>>>>>>>>', sortedProducts);
+
+
+
+
+
+
+
+
+
         // Fetch product details for the sorted products
-        const productIds = sortedProducts.map(product => product.product_id);
-        const products = await Product.find({ _id: { $in: productIds } })
+        // const productIds = sortedProducts.map(product => product.product_id);
+        // const products = await Product.find({ _id: { $in: productIds } })
 
-        // Create a map for quick lookup of product details
-        const productMap = new Map(products.map(p => [p._id.toString(), p]));
+        // const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+        // const getProductIds = await sortedProducts.map(product => product.product_id)
+
+        // console.log('result>>>>>>>>>>', productIds);
+
+        // const x = await getProducts(getProductIds)
+
+        // const result = sortedProducts.map(product => {
+        //     const productDetails = productMap.get(product.product_id.toString());
+        //     return {
+        //         ...product,
+        //         details: productDetails || null
+        //     };
+        // });
 
 
-        const getProductIds = await sortedProducts.map(product => product.product_id)
-
-        // console.log('getProductIds???????????', getProductIds);
-
-        const x = await getProducts(getProductIds)
-
-
-        // Map sorted products to include product details
-        const result = sortedProducts.map(product => {
-            const productDetails = productMap.get(product.product_id.toString());
-            return {
-                ...product,
-                details: productDetails || null
-            };
-        });
-
-        // console.log('result>>>>>>>>>>', result);
-
-        // Send the result as the response
-        res.send({ result: x });
+        // res.send({ result: x });
 
     } catch (error) {
         handleError(error.message, 400, res);
