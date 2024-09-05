@@ -11,12 +11,11 @@ module.exports = app => {
 
 
     router.post('/products/media/:id', media.addProductMedia)
+    router.get('/getedia/:id', media.getMedia)
+
 
     router.patch('/products/media/:id', fileUploader, media.updateProductMedia)
     router.delete('/products/media/:id', media.removeProductMediaById)
-
-
-
 
     app.use('/api', router)
 };

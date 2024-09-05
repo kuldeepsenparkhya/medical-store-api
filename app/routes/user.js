@@ -8,7 +8,7 @@ module.exports = app => {
     router.get('/users', adminAccess, users.find)
     router.get('/users/:id', adminAccess, users.findOne)
     router.patch('/users/changepassword', users.changePassword)
-    router.patch('/users/:id', adminAccess, users.update)
+    router.patch('/users/:id', adminAccess, fileUploader, users.update)
 
     router.patch('/update/profile', fileUploader, users.updateProfile)
     router.get('/me', users.me)

@@ -37,6 +37,9 @@ const db = {
 
   Inventory:require('./inventory'),
 
+  Document:require('./document'),
+
+
 
 
 

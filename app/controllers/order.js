@@ -43,9 +43,17 @@ exports.create = async (req, res) => {
         await newOrder.save();
 
         const orderItems = await Promise.all(products.map(async (item) => {
+
             const product = await Product.findOne({ _id: item.product_id });
             const variant = await ProductVariant.findOne({ _id: item.product_variant_id });
             product._doc.variant = variant;
+
+
+            console.log('item>>>>>>>>>>>>>', item);
+
+
+
+
 
             return {
                 itemName: product.title,

@@ -56,7 +56,7 @@ exports.find = async (req, res) => {
 
         const users = await User.find({ ...searchFilter })
             .skip((page - 1) * limit)
-            .limit(parseInt(limit)) 
+            .limit(parseInt(limit))
 
 
         const getUsers = users.filter((user) => user.role !== 'admin')
@@ -77,6 +77,10 @@ exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
         const user = await User.findOne({ _id: id })
+        if (!user) {
+            handleError('Invailid user.', 400, res)
+            return
+        }
         handleResponse(res, user._doc, 200)
     } catch (error) {
         handleError(error.message, 400, res)
@@ -87,6 +91,12 @@ exports.update = async (req, res) => {
     try {
         const { name, email, mobile } = req.body
         const { id } = req.params;
+
+        const user = await User.findOne({ _id: id })
+        if (!user) {
+            handleError('Invailid user.', 400, res)
+            return
+        }
 
         const { error } = updateUser.validate(req.body, { abortEarly: false })
 
@@ -146,22 +156,16 @@ exports.updateProfile = async (req, res) => {
         const { name, email, mobile } = req.body
 
         const { error } = updateUser.validate(req.body, { abortEarly: false })
-
         if (error) {
             handleError(error, 400, res)
             return
         }
 
-
-        console.log('data>>>>>>>>>>>>', req?.file);
-
         const file = req?.file ? `/media/${req?.file?.filename}` : ''
 
         const data = { name, email, mobile, profile: file }
-
-
-
         await User.updateOne({ _id: req.user._id }, data, { new: true })
+
         res.status(200).send({ message: "User has been successfully update.", error: false })
     } catch (error) {
         handleError(error.message, 400, res)
@@ -195,7 +199,6 @@ exports.changePassword = async (req, res) => {
         if (!matchedPassword) {
             return res.status(401).send({ message: 'Old password is incorrect', error: true });
         }
-        console.log('matchedPassword>>>>>>>>>>>>', matchedPassword);
 
         // Hash the new password
         const updatePassword = await bcrypt.hash(new_password, 10);

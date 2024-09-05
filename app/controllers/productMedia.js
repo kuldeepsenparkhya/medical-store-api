@@ -1,5 +1,5 @@
 const { Media } = require("../modals");
-const { handleError } = require("../utils/helper");
+const { handleError, handleResponse } = require("../utils/helper");
 
 
 exports.addProductMedia = async (req, res) => {
@@ -20,7 +20,7 @@ exports.addProductMedia = async (req, res) => {
         }
 
         const files = [];
-        
+
         if (req?.files && Array.isArray(req?.files)) {
             req?.files?.forEach((val) => {
                 files.push({
@@ -91,3 +91,19 @@ exports.removeProductMediaById = async (req, res) => {
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
 }
+
+
+exports.getMedia = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const media = await Media.findOne({ _id: id })
+        if (!media) {
+            handleError('Invailid media ID.', 400, res)
+            return;
+        }
+        handleResponse(res, media._doc, "Media has been successfully retrieve.", 200)
+    } catch (error) {
+        handleError(error.message || 'An unexpected error occurred', 400, res);
+    }
+}
+

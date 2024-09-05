@@ -271,14 +271,12 @@ exports.update = async (req, res) => {
 
         // Prepare the update operations
         const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
-
             const updatedData = {
                 size: variant.size,
                 price: variant.price,
                 discounted_id: variant.discounted_id,
                 quantity: variant.quantity
             };
-
             // Update each variant by its ID and product ID
             return ProductVariant.updateOne(
                 { _id: variant.id, productId: product._id },
@@ -305,7 +303,6 @@ exports.update = async (req, res) => {
             try {
                 await fs.access(filePath);
                 await fs.unlink(path.join(BASE_PATH, fileName));
-
             } catch (error) {
                 console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
             }
@@ -341,7 +338,6 @@ exports.update = async (req, res) => {
 
 
             const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
-
 
             const fileName = path.basename(brochure?.url);
             const filePath = path.join(BASE_PATH, fileName);

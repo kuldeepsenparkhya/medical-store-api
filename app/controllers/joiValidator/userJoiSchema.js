@@ -49,8 +49,8 @@ const OTPVerify = Joi.object().keys({
 
 const updateUserPassword = Joi.object().keys({
     token: Joi.string().required(),
-    new_password: Joi.string().required(),
-    confirm_password: Joi.string().required(),
+    new_password: Joi.string().min(8).max(32).required(),
+    confirm_password: Joi.string().min(8).max(32).required(),
 })
 
 module.exports = {

@@ -28,7 +28,7 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001", 'https://janhit-chemist.netlify.app','https://janhit-chamist-admin.netlify.app'],
+    origin: ["http://localhost:3000", "http://localhost:3001", 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
     credentials: true
 }));
@@ -49,9 +49,9 @@ require('./app/routes/auth/auth')(app);
 require('./app/routes/addressBook')(app);
 require('./app/routes/addToCart')(app);
 
-
-
 app.use(authJWT);
+require('./app/routes/document')(app);
+
 
 require('./app/routes/user')(app);
 require('./app/routes/wishList')(app);
@@ -61,6 +61,7 @@ require('./app/routes/order')(app);
 require('./app/routes/discount')(app);
 
 require('./app/routes/inventory')(app);
+
 
 
 app.get('*', (req, res) => {
