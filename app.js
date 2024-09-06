@@ -49,7 +49,10 @@ require('./app/routes/auth/auth')(app);
 require('./app/routes/addressBook')(app);
 require('./app/routes/addToCart')(app);
 
+require('./app/routes/discount')(app);
+
 app.use(authJWT);
+
 require('./app/routes/document')(app);
 
 
@@ -58,7 +61,6 @@ require('./app/routes/wishList')(app);
 require('./app/routes/prescription')(app);
 
 require('./app/routes/order')(app);
-require('./app/routes/discount')(app);
 
 require('./app/routes/inventory')(app);
 

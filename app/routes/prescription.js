@@ -7,6 +7,8 @@ module.exports = app => {
 
     router.post('/prescriptions', fileUploader, prescriptions.create)
     router.get('/prescriptions', prescriptions.find)
+    router.get('/prescriptions/:userID', prescriptions.findUserPrescription)
+
     router.get('/prescriptions/:id', prescriptions.findOne)
     
     router.patch('/prescriptions/:id', prescriptions.handlePrescriptionRequest)

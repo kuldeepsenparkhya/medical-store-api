@@ -1,6 +1,7 @@
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { createDiscount } = require("./joiValidator/discountJoiSchema");
 const { Discount } = require("../modals");
+const { isValidObjectId } = require("mongoose");
 
 exports.create = async (req, res) => {
     try {
@@ -58,7 +59,20 @@ exports.find = async (req, res) => {
 
 exports.findOne = async (req, res) => {
     try {
+
+        const { id } = req.params;
+
+        // Validate the ID
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid discount ID format', 400, res);
+        }
+
         const discount = await Discount.findOne({ _id: req.params.id })
+        if (!discount) {
+            handleError('Invalid discount ID', 400, res)
+            return
+        }
+
         handleResponse(res, discount._doc, 200)
     } catch (error) {
         handleError(error.message, 400, res)

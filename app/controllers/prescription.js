@@ -37,10 +37,8 @@ exports.find = async (req, res) => {
         } : {};
 
         const prescription = await Prescription.find({ ...searchFilter })
-            .skip((page - 1) * limit)  // Skip the records for previous pages
-            .limit(parseInt(limit))   // Limit the number of records returned
-        // .sort({ name: sort });    // Sort if needed (assuming sorting is done by 'name')
-
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
 
         const totalCount = await Prescription.countDocuments()
 
@@ -54,11 +52,45 @@ exports.find = async (req, res) => {
 };
 
 
+exports.findUserPrescription = async (req, res) => {
+    try {
+        const { role, q, page = 1, limit = 10, sort } = req.query;
+
+        // Ensure page and limit are integers
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+
+        // Validate page and limit
+        if (isNaN(pageNumber) || pageNumber < 1) {
+            throw new Error('Invalid page number');
+        }
+        if (isNaN(limitNumber) || limitNumber < 1) {
+            throw new Error('Invalid limit number');
+        }
+
+        // Perform the query with pagination
+        const prescriptions = await Prescription.find({ user_id: req.params.userID })
+            .skip((pageNumber - 1) * limitNumber)
+            .limit(limitNumber)
+            .sort(sort ? { [sort]: 1 } : {}); // Sort if provided
+
+        // Get the total count of documents that match the query filter
+        const totalCount = await Prescription.countDocuments({ user_id: req.params.userID });
+
+        // Prepare pagination results
+        const getPaginationResult = await getPagination(req.query, prescriptions, totalCount);
+
+        // Send the response
+        handleResponse(res, getPaginationResult, 200);
+    } catch (error) {
+        handleError(error.message, 400, res);
+    }
+};
+
+
 exports.findOne = async (req, res) => {
     try {
-
         const { id } = req.params
-
         const prescription = await Prescription.findOne({ _id: id })
 
         if (!prescription) {
@@ -78,13 +110,8 @@ exports.findOne = async (req, res) => {
 exports.handlePrescriptionRequest = async (req, res) => {
     try {
         const { status } = req.body
-
-        console.log('status<<<<<<<', status);
-
         const { id } = req.params;
-
         const prescription = await Prescription.findOne({ _id: id })
-
         if (!prescription) {
             handleError('Invailid prescription ID.', 400, res)
             return
