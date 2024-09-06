@@ -37,10 +37,6 @@ exports.authJWT = async (req, res, next) => {
 
 exports.adminAccess = async (req, res, next) => {
   try {
-
-    console.log('req?.user?.role>>>>>>>>>', req?.user);
-
-
     if (req?.user?.role === 'admin') {
       return next();
     }

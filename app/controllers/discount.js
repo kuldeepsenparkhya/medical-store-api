@@ -82,8 +82,16 @@ exports.findOne = async (req, res) => {
 
 exports.handleDiscountStatus = async (req, res) => {
     try {
+
+        const { id } = req.params;
+
+        // Validate the ID
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid discount ID format', 400, res);
+        }
+
         const { status } = req.body
-        const discount = await Discount.findOne({ _id: req.params.id })
+        const discount = await Discount.findOne({ _id: id })
 
         if (!discount) {
             handleError('Invailid discount ID.', 400, res)
@@ -101,8 +109,14 @@ exports.handleDiscountStatus = async (req, res) => {
 
 exports.removeDiscount = async (req, res) => {
     try {
+        const { id } = req.params;
+        // Validate the ID
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid discount ID format', 400, res);
+        }
+
         const { isDeleted } = req.body
-        const discount = await Discount.findOne({ _id: req.params.id })
+        const discount = await Discount.findOne({ _id: id })
 
         if (!discount) {
             handleError('Invailid discount ID.', 400, res)
