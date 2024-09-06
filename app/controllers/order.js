@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer } = require("../utils/helper");
-const { Order, Product, ProductVariant, User, AddressBook } = require('../modals');
+const { Order, Product, ProductVariant, User, AddressBook, Inventory } = require('../modals');
 
 
 exports.create = async (req, res) => {
@@ -20,6 +20,33 @@ exports.create = async (req, res) => {
         if (!address) {
             handleError('Invalid address ID', 400, res);
             return;
+        }
+
+        // Check inventory availability
+        const outOfStockVariants = [];
+        let dueQuantity
+
+        await Promise.all(products.map(async (item) => {
+
+            const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+            dueQuantity = inventory.total_variant_quantity - inventory.sale_variant_quantity
+
+            if (dueQuantity < item.quantity) {
+                outOfStockVariants.push({
+                    product_id: item.product_id,
+                    product_variant_id: item.product_variant_id,
+                    quantity: item.quantity
+                })
+            }
+        }));
+
+        if (outOfStockVariants.length > 0) {
+            return res.status(400).send({
+                message: 'Out of stock some product varients.',
+                error: true,
+                dueQuantity,
+                outOfStockVariants
+            })
         }
 
         const newData = products.map((item, i) => {
@@ -42,18 +69,39 @@ exports.create = async (req, res) => {
 
         await newOrder.save();
 
+
         const orderItems = await Promise.all(products.map(async (item) => {
 
             const product = await Product.findOne({ _id: item.product_id });
-            const variant = await ProductVariant.findOne({ _id: item.product_variant_id });
+            const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id });
             product._doc.variant = variant;
 
+            const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id })
 
-            console.log('item>>>>>>>>>>>>>', item);
+            // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+            const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+            const saleQty = currentSaleQty + item.quantity;
 
+            // Ensure saleQty is a valid number
+            if (isNaN(saleQty)) {
+                throw new Error('Invalid quantity value');
+            }
 
+            await Inventory.updateOne(
+                { product_id: item.product_id, product_variant_id: item.product_variant_id },
+                { sale_variant_quantity: saleQty },
+                { new: true }
+            );
 
+            const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id })
 
+            if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+                await ProductVariant.updateOne(
+                    { productId: item.product_id, _id: item.product_variant_id },
+                    { inStock: false },
+                    { new: true }
+                );
+            }
 
             return {
                 itemName: product.title,
@@ -127,7 +175,7 @@ exports.create = async (req, res) => {
                     </div>
                     `;
 
-        await sendMailer(req.user.email, subject, message, res);
+         sendMailer(req.user.email, subject, message, res);
 
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
