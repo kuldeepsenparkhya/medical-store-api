@@ -64,8 +64,6 @@ require('./app/routes/order')(app);
 
 require('./app/routes/inventory')(app);
 
-
-
 app.get('*', (req, res) => {
     res.status(400).send({
         message: 'Hunn smart!',
