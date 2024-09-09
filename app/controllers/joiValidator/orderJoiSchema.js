@@ -4,6 +4,7 @@ const Joi = require('joi');
 const orderVailidationSchema = Joi.object({
     address_id: Joi.string().required(),
     shipping_charge: Joi.number().min(0).required(),
+    order_type: Joi.string().required(),
 
     products: Joi.array().items(Joi.object({
         product_id: Joi.string().required(),

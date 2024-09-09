@@ -1,15 +1,16 @@
+const Razorpay = require('razorpay');
+
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer } = require("../utils/helper");
-const { Order, Product, ProductVariant, User, AddressBook, Inventory } = require('../modals');
+const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction } = require('../modals');
 
 
 exports.create = async (req, res) => {
     try {
-        const { products, address_id, shipping_charge } = req.body
-
+        const { products, address_id, shipping_charge, order_type } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
         if (error) {
             handleError(error, 400, res);
@@ -22,12 +23,18 @@ exports.create = async (req, res) => {
             return;
         }
 
+        const user = await User.findOne({ _id: req?.user?._id })
+        if (!user) {
+            handleError('You need to login', 400, res);
+            return;
+        }
+
+
         // Check inventory availability
         const outOfStockVariants = [];
         let dueQuantity
 
         await Promise.all(products.map(async (item) => {
-
             const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
             dueQuantity = inventory.total_variant_quantity - inventory.sale_variant_quantity
 
@@ -61,14 +68,12 @@ exports.create = async (req, res) => {
 
         const grandTotal = subTotal + shipping_charge
 
-        const user = await User.findOne({ _id: req.user._id })
 
         const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal }
 
         const newOrder = new Order(data);
 
         await newOrder.save();
-
 
         const orderItems = await Promise.all(products.map(async (item) => {
 
@@ -133,53 +138,85 @@ exports.create = async (req, res) => {
 
         const subject = 'Thank You for Your Purchase!';
         const message = `
-                    <div style="margin:auto; width:70%">
-                        <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
-                        <div style="margin:50px auto; width:60%; padding:20px 0">
-                            <p style="font-size:25px">Hello ${req.user.name},</p>
-                            <p>Thank you for your purchase! We’re excited to let you know that your order <strong>#${newOrder._id}</strong> has been received and is now being processed.</p>
-                            <p>Here are the details of your order:</p>
-
-                            <table style="width:100%; border-collapse:collapse;">
-                            <thead>
-                                <tr>
-                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Item</th>
-                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Quantity</th>
-                                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${orderItems.map(item => `
-                                <tr>
-                                    <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
-                                    <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
-                                    <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
-                                </tr>
-                                `).join('')}
-                            </tbody>
-                            </table>
-
-                            <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
-                            <p>Shipping: <strong>$${shipping_charge}</strong></p>
-                            <p>Total: <strong>$${grandTotal}</strong></p>
-
-                            <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
-
-                            <p style="font-size:0.9em;">Thank you for shopping with us!</p>
-                            <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
-
-                            <hr style="border:none; border-top:1px solid #eee" />
-                            <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
+                        <div style="margin:auto; width:70%">
+                            <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
+                            <div style="margin:50px auto; width:60%; padding:20px 0">
+                                <p style="font-size:25px">Hello ${req.user.name},</p>
+                                <p>Thank you for your purchase! We’re excited to let you know that your order <strong>#${newOrder._id}</strong> has been received and is now being processed.</p>
+                                <p>Here are the details of your order:</p>
+    
+                                <table style="width:100%; border-collapse:collapse;">
+                                <thead>
+                                    <tr>
+                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Item</th>
+                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Quantity</th>
+                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${orderItems.map(item => `
+                                    <tr>
+                                        <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
+                                        <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
+                                        <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
+                                    </tr>
+                                    `).join('')}
+                                </tbody>
+                                </table>
+    
+                                <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
+                                <p>Shipping: <strong>$${shipping_charge}</strong></p>
+                                <p>Total: <strong>$${grandTotal}</strong></p>
+    
+                                <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
+    
+                                <p style="font-size:0.9em;">Thank you for shopping with us!</p>
+                                <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
+    
+                                <hr style="border:none; border-top:1px solid #eee" />
+                                <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
+                            </div>
+                            </div>
                         </div>
-                        </div>
-                    </div>
-                    `;
+                        `;
 
-         sendMailer(req.user.email, subject, message, res);
+        sendMailer(req.user.email, subject, message, res);
+
+        if (order_type === 'prepaid') {
+
+            var razorPayIinstance = new Razorpay({
+                key_id: 'rzp_test_GcZZFDPP0jHtC4',
+                key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
+            });
+
+            const options = {
+                amount: grandTotal * 100,
+                currency: 'INR',
+                receipt: `${req.user.name}`,
+                payment_capture: 1
+            }
+
+            const response = await razorPayIinstance.orders.create(options)
+
+            const transactionData = {
+                transaction_id: response.id,
+                receipt: response.receipt,
+                paid_amount: response.paid_amount,
+                currency: response.currency,
+                status: response.status,
+                order_id: newOrder._id,
+            }
+
+            const transaction = new Transaction(transactionData);
+            await transaction.save();
+        }
 
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
     } catch (error) {
+
+        console.log('error>>>>>>>', error);
+
         handleError(error.message, 400, res);
     }
 };
@@ -471,6 +508,10 @@ exports.handleCancelledOrder = async (req, res) => {
             return
         }
 
+
+        console.log('order<<<<<<<<<<<<<<', order);
+
+
         await Order.updateOne({ _id: order._id }, { status: status }, { new: true })
 
         res.status(200).send({ message: `Order has been successfully ${status}`, error: false })
@@ -658,5 +699,99 @@ exports.findAllUserOrders = async (req, res) => {
     } catch (error) {
         // Error handling
         handleError(error.message, 400, res);
+    }
+};
+
+
+exports.checkout = async (req, res) => {
+    var razorPayIinstance = new Razorpay({
+        key_id: 'rzp_test_GcZZFDPP0jHtC4',
+        key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
+    });
+
+    const options = {
+        amount: req.body.amount * 100,
+        currency: 'INR',
+        receipt: 'reciept#1',
+        payment_capture: 1
+    }
+    try {
+        const response = await razorPayIinstance.orders.create(options)
+
+        console.log('response>>>>>>>>>', response);
+
+
+        res.send({
+            order_id: response.id,
+            currency: response.currency,
+            amount: response.amount,
+
+        })
+
+    } catch (error) {
+        res.send({ error: true, message: error.message })
+    }
+}
+
+exports.payment = async (req, res) => {
+    const { paymentId } = req.params;
+    const razorpay = new Razorpay({
+        key_id: "rzp_test_GcZZFDPP0jHtC4",
+        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ"
+    })
+
+    try {
+        const payment = await razorpay.payments.fetch(paymentId)
+        if (!payment) {
+            return res.status(500).json("Error at razorpay loading")
+        }
+
+        res.json({
+            status: payment.status,
+            method: payment.method,
+            amount: payment.amount,
+            currency: payment.currency
+        })
+    } catch (error) {
+        res.status(500).json("failed to fetch")
+    }
+}
+
+exports.getAllPayments = async (req, res) => {
+    const razorpay = new Razorpay({
+        key_id: "rzp_test_GcZZFDPP0jHtC4",
+        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ"
+    });
+
+    try {
+        // Fetch all payments
+        const payments = await razorpay.payments.all();
+
+        // Check if payments are available
+        if (!payments || !payments.items || payments.items.length === 0) {
+            return res.status(404).json("No payments found");
+        }
+
+        // Example of sending the first payment's details (adjust as necessary)
+        const payment = payments.items.map((item) =>
+        ({
+            status: item.status,
+            method: item.method,
+            amount: item.amount / 100,
+            currency: item.currency,
+        }));
+
+
+        res.send({ payment })
+
+        // res.json({
+        //     status: payment.status,
+        //     method: payment.method,
+        //     amount: payment.amount / 100,
+        //     currency: payment.currency,
+        // });
+    } catch (error) {
+        console.error("Error fetching payments:", error); // Log the error for debugging
+        res.status(500).json({ message: "Failed to fetch payments", error: error.message });
     }
 };

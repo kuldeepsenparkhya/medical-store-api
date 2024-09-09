@@ -22,4 +22,6 @@ module.exports = {
     documents: require('./document'),
 
 
+    produtVariants: require('./productVarient')
+
 }

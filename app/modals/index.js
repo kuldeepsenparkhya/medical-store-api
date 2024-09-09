@@ -38,6 +38,8 @@ const db = {
   Inventory:require('./inventory'),
 
   Document:require('./document'),
+  Transaction:require('./transaction'),
+
 
 
 

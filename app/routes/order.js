@@ -12,7 +12,7 @@ module.exports = app => {
     router.get('/orders/user/:user_id', adminAccess, orders.findOrdersByUserId);
     router.get('/user/orders', orders.findAllUserOrders);
     router.get('/orders/:id', orders.getOrderById);
-    
+
     router.delete('/orders/:id', orders.cancelledOrder);
 
     router.patch('/orders/:id', adminAccess, orders.handleCancelledOrder);
@@ -21,6 +21,13 @@ module.exports = app => {
         const { type, id } = req.params
         res.sendFile(path.join(__dirname, `../invoices/${id}.pdf`,))
     })
+
+
+
+    router.post('/checkout', orders.checkout);
+    router.get('/payment/:paymentId', orders.payment);
+    router.get('/payments', orders.getAllPayments);
+
 
     app.use('/api', router);
 };

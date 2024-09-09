@@ -63,6 +63,8 @@ require('./app/routes/prescription')(app);
 require('./app/routes/order')(app);
 
 require('./app/routes/inventory')(app);
+require('./app/routes/variant')(app);
+
 
 app.get('*', (req, res) => {
     res.status(400).send({
