@@ -13,6 +13,10 @@ const brandSchema = Schema({
   brand_logo: {
     type: String,
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
 },
   {
     timestamps: true

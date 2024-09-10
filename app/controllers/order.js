@@ -6,6 +6,7 @@ const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction } = require('../modals');
+const { isValidObjectId } = require('mongoose');
 
 
 exports.create = async (req, res) => {
@@ -413,6 +414,10 @@ exports.findOrdersByUserId = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Order ID format', 400, res);
+        }
+
         // Fetch the order by its ID and populate necessary fields
         const order = await Order.findOne({ _id: id }).lean();
 
@@ -481,7 +486,24 @@ exports.getOrderById = async (req, res) => {
 exports.cancelledOrder = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Order ID format', 400, res);
+        }
+
         const order = await Order.findOne({ _id: id, user_id: req.user._id })
+
+        await Promise.all(order?.products?.map(async (product) => {
+            const inventory = await Inventory.findOne({ product_id: product.product_id, product_variant_id: product.product_variant_id });
+
+            await Inventory.updateOne({ product_id: product.product_id, product_variant_id: product.product_variant_id },
+                {
+                    sale_variant_quantity
+                        : inventory.sale_variant_quantity - product.quantity
+                }, { new: true })
+        }))
+
+
 
         if (!order) {
             handleError('Invailid order ID.', 400, res)
@@ -500,6 +522,11 @@ exports.cancelledOrder = async (req, res) => {
 exports.handleCancelledOrder = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Order ID format', 400, res);
+        }
+
         const { status } = req.body
         const order = await Order.findOne({ _id: id })
 
@@ -508,8 +535,16 @@ exports.handleCancelledOrder = async (req, res) => {
             return
         }
 
-
-        console.log('order<<<<<<<<<<<<<<', order);
+        if (status === 'cancelled') {
+            await Promise.all(order?.products?.map(async (product) => {
+                const inventory = await Inventory.findOne({ product_id: product.product_id, product_variant_id: product.product_variant_id });
+                await Inventory.updateOne({ product_id: product.product_id, product_variant_id: product.product_variant_id },
+                    {
+                        sale_variant_quantity
+                            : inventory.sale_variant_quantity - product.quantity
+                    }, { new: true })
+            }))
+        }
 
 
         await Order.updateOne({ _id: order._id }, { status: status }, { new: true })

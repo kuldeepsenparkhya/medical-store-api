@@ -22,8 +22,6 @@ module.exports = app => {
         res.sendFile(path.join(__dirname, `../invoices/${id}.pdf`,))
     })
 
-
-
     router.post('/checkout', orders.checkout);
     router.get('/payment/:paymentId', orders.payment);
     router.get('/payments', orders.getAllPayments);

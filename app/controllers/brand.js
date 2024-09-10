@@ -1,3 +1,4 @@
+const { isValidObjectId } = require("mongoose");
 const { Brand } = require("../modals");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { createBrand, updateBrand } = require("./joiValidator/brandJoi.Schema");
@@ -66,10 +67,14 @@ exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
 
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Brand ID format', 400, res);
+        }
+
         const brand = await Brand.findOne({ _id: id })
 
         if (!brand) {
-            handleError('Invailid Brand ID.', 400, res)
+            handleError('Brand is not exist.', 400, res)
             return
         }
 
@@ -87,6 +92,11 @@ exports.update = async (req, res) => {
         const { name, description } = req.body
         const { id } = req.params;
 
+
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Brand ID format', 400, res);
+        }
+
         const { error } = updateBrand.validate(req.body, { abortEarly: false })
 
         if (error) {
@@ -103,7 +113,7 @@ exports.update = async (req, res) => {
 
         let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
 
-        const data = {name, description, brand_logo: file_URL }
+        const data = { name, description, brand_logo: file_URL }
 
 
         console.log('file_URL>>>>>>>>', data);
@@ -122,14 +132,18 @@ exports.delete = async (req, res) => {
     try {
         const { id } = req.params;
 
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Brand ID format', 400, res);
+        }
+
         const brand = await Brand.findOne({ _id: id })
 
         if (!brand) {
-            handleError('Invailid Brand ID.', 400, res)
+            handleError('Brand ID is not exist.', 400, res)
             return
         }
 
-        await Brand.deleteOne({ _id: brand._id })
+        await Brand.updateOne({ _id: brand._id }, { isDeleted: true }, { new: true })
 
         handleResponse(res, { message: 'Brand successfully removed.' }, 'Brand successfully removed.', 200)
     }

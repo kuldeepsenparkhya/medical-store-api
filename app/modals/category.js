@@ -19,6 +19,10 @@ const productCategorySchema = Schema({
   category_img: {
     type: String,
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
 },
   {
     timestamps: true

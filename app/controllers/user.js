@@ -28,7 +28,6 @@ exports.create = async (req, res) => {
             role: newUser.role,
         }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
-
         const datad = { ...newUser._doc, token }
 
         handleResponse(res, datad, 201)
@@ -41,6 +40,35 @@ exports.create = async (req, res) => {
         handleError(error.message, 400, res)
     };
 };
+
+
+// exports.addUserByAdmin = async (req, res) => {
+//     try {
+//         const { name, email, password, mobile, role } = req.body
+//         const { error } = registerUser.validate(req.body, { abortEarly: false })
+
+//         if (error) {
+//             handleError(error, 400, res)
+//             return
+//         }
+
+//         const data = { name, email, password, mobile, role };
+//         const newUser = new User(data);
+
+//         await newUser.save();
+
+//         const datad = { ...newUser._doc }
+
+//         handleResponse(res, datad, 'User has been successfully created!', 201)
+//     } catch (error) {
+//         if (error.code === 11000) {
+//             handleError('This email is already exists.', 400, res)
+
+//             return
+//         }
+//         handleError(error.message, 400, res)
+//     };
+// };
 
 
 exports.find = async (req, res) => {

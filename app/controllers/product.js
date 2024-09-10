@@ -1,10 +1,9 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
 const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount } = require("../modals");
-const { updateProductSchema } = require("./joiValidator/productJoi.Schema");
 
 const path = require("path");
+const { isValidObjectId } = require("mongoose");
 const fs = require('fs').promises;
-
 
 
 exports.create = async (req, res) => {
@@ -18,9 +17,7 @@ exports.create = async (req, res) => {
         const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
 
         const newProduct = new Product(productData);
-
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
-
         // Process variants if provided
         if (newVarient && Array.isArray(newVarient)) {
             const variantData = newVarient.map(variant => {
@@ -30,15 +27,12 @@ exports.create = async (req, res) => {
                     productId: newProduct._id
                 }
                 return data
-            }
-
-            );
-
+            })
             // Insert all variants in one go
             await ProductVariant.insertMany(variantData);
         }
 
-        // Process files
+        // Process product files
         const files = [];
         if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
             req?.files?.productFiles.forEach((val) => {
@@ -53,7 +47,7 @@ exports.create = async (req, res) => {
             await Media.insertMany(files); // Use insertMany to handle multiple documents
         }
 
-        // Process files
+        // Process brochures files
         const brochures = [];
         if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
 
@@ -232,6 +226,9 @@ exports.find = async (req, res) => {
 exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Product ID format', 400, res);
+        }
         const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id')
         const media = await Media.find({ product_id: product._id })
         const brochure = await Brochure.find({ product_id: product._id })
@@ -241,8 +238,8 @@ exports.findOne = async (req, res) => {
         product._doc.variants = variants;
         product._doc.brochure = brochure;
 
-
         handleResponse(res, product._doc, 'Retrieved Product', 200)
+
     } catch (error) {
         handleError(error.message, 400, res)
     };
@@ -254,7 +251,12 @@ exports.update = async (req, res) => {
         const { id } = req.params;
         const BASE_PATH = path.join(__dirname, "../upload");
 
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Product ID format', 400, res);
+        }
+
         const product = await Product.findOne({ _id: id })
+
         if (!product) {
             handleError('Invalid product ID', 400, res);
             return
@@ -271,12 +273,17 @@ exports.update = async (req, res) => {
 
         // Prepare the update operations
         const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
+
             const updatedData = {
                 size: variant.size,
                 price: variant.price,
                 discounted_id: variant.discounted_id,
                 quantity: variant.quantity
             };
+
+            const inventory = await Inventory.findOne({ product_id: product._id, product_variant_id: variant.id });
+            await Inventory.updateOne({ product_id: inventory.product_id, product_variant_id: inventory.product_variant_id }, { total_variant_quantity: variant.quantity }, { new: true })
+
             // Update each variant by its ID and product ID
             return ProductVariant.updateOne(
                 { _id: variant.id, productId: product._id },
@@ -287,19 +294,20 @@ exports.update = async (req, res) => {
         // Wait for all update operations to complete
         await Promise.all(updatePromises);
 
+        // Remove Product variants
         const correctedStr = remove_variant?.replace(/'/g, '"');
         const varientIds = correctedStr && JSON?.parse(correctedStr);
+        varientIds?.map(async (v) => await ProductVariant.deleteOne({ _id: v, productId: product._id }))
 
+        // Remove Medias
         const correctedMediaStr = remove_media?.replace(/'/g, '"');
         const mediaIds = correctedMediaStr && JSON?.parse(correctedMediaStr);
-
-        varientIds?.map(async (v) => await ProductVariant.deleteOne({ _id: v, productId: product._id }))
 
         mediaIds?.map(async (m) => {
             const media = await Media.findOne({ _id: m, product_id: product._id })
             const fileName = path.basename(media?.url);
-
             const filePath = path.join(BASE_PATH, fileName);
+
             try {
                 await fs.access(filePath);
                 await fs.unlink(path.join(BASE_PATH, fileName));
@@ -313,6 +321,7 @@ exports.update = async (req, res) => {
 
         const files = [];
         if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
+
             req?.files?.productFiles.forEach((val) => {
                 files.push({
                     url: `/media/${val.filename}`,
@@ -328,12 +337,14 @@ exports.update = async (req, res) => {
         // Process files
         const brochures = [];
         if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
+
             req?.files?.brochure.forEach((val) => {
                 brochures.push({
                     url: `/broucher/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: product._id
                 });
+
             });
 
 
@@ -367,6 +378,11 @@ exports.update = async (req, res) => {
 exports.removeProduct = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid Product ID format', 400, res);
+        }
+
         const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id')
 
         if (!product) {
@@ -384,8 +400,9 @@ exports.removeProduct = async (req, res) => {
 
 exports.getTopSellingProducts = async (req, res) => {
     try {
-        const orders = await Order.find({})
-
+        // Fetch all orders
+        const orders = await Order.find({});
+        // Helper function to aggregate product quantities
         const aggregateProductQuantities = (orders) => {
             return orders.reduce((acc, order) => {
                 order.products.forEach(({ product_id, quantity }) => {
@@ -402,45 +419,58 @@ exports.getTopSellingProducts = async (req, res) => {
                 .sort((a, b) => b.quantity - a.quantity);
         };
 
-
+        // Aggregate and sort products
         const productQuantities = aggregateProductQuantities(orders);
         const sortedProducts = sortProductsByQuantity(productQuantities);
+        console.log('Sorted products:', sortedProducts);
 
+        // Fetch product details and related data
+        const products = await Promise.all(sortedProducts.map(async (item) => {
+            try {
+                // Fetch the product with populated fields
+                const product = await Product.findOne({ _id: item.product_id })
+                    .populate('brand_id')
+                    .populate('product_category_id');
 
+                if (!product) {
+                    console.error(`Product not found for ID: ${item.product_id}`);
+                    return null;
+                }
 
+                console.log(`Product found for ID: ${item.product_id}`, product);
 
-        console.log('productQuantities>>>>>>>>>>>>>', sortedProducts);
+                // Fetch related media, brochure, and variants
+                const media = await Media.find({ product_id: product._id });
+                const brochure = await Brochure.find({ product_id: product._id });
+                const variants = await ProductVariant.find({ productId: product._id });
 
+                console.log(`Media for product ${product._id}:`, media);
+                console.log(`Brochure for product ${product._id}:`, brochure);
+                console.log(`Variants for product ${product._id}:`, variants);
 
+                // Ensure product is converted to a plain object
+                const productObj = product.toObject ? product.toObject() : product;
 
+                // Add related data to product object
+                productObj.media = media;
+                productObj.variants = variants;
+                productObj.brochure = brochure;
 
+                return productObj;
+            } catch (error) {
+                console.error(`Error fetching data for product ID: ${item.product_id}`, error);
+                return null;
+            }
+        }));
 
+        // Filter out null products (in case any were not found or had errors)
+        const filteredProducts = products.filter(p => p !== null);
 
+        // Debug output
+        console.log('Filtered products:', filteredProducts);
 
-
-
-        // Fetch product details for the sorted products
-        // const productIds = sortedProducts.map(product => product.product_id);
-        // const products = await Product.find({ _id: { $in: productIds } })
-
-        // const productMap = new Map(products.map(p => [p._id.toString(), p]));
-
-        // const getProductIds = await sortedProducts.map(product => product.product_id)
-
-        // console.log('result>>>>>>>>>>', productIds);
-
-        // const x = await getProducts(getProductIds)
-
-        // const result = sortedProducts.map(product => {
-        //     const productDetails = productMap.get(product.product_id.toString());
-        //     return {
-        //         ...product,
-        //         details: productDetails || null
-        //     };
-        // });
-
-
-        // res.send({ result: x });
+        // Send the result
+        res.send({ result: filteredProducts });
 
     } catch (error) {
         handleError(error.message, 400, res);
@@ -558,7 +588,6 @@ exports.getAllTrashProducts = async (req, res) => {
         const discount = products.map((item) => {
             item.variant.map(async (varient) => {
                 const discount = await Discount.findOne({ discounted_id: varient.discounted_id })
-                console.log('products>>>>>>>>>>>', discount);
             })
         })
 

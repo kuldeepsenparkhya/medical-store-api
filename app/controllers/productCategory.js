@@ -1,3 +1,4 @@
+const { isValidObjectId } = require("mongoose");
 const { ProductCategory } = require("../modals");
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { createProductCategory, updateProductCategory } = require("./joiValidator/productCategoryJoi.Schema");
@@ -15,8 +16,6 @@ exports.create = async (req, res) => {
         }
 
         const validParentCategoryId = (parent_category_id && parent_category_id !== '') ? parent_category_id : null;
-
-
 
         let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
         const data = { name, description, category_img: category_img, parent_category_id: validParentCategoryId }
@@ -66,6 +65,10 @@ exports.findOne = async (req, res) => {
     try {
         const { id } = req.params;
 
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid category ID format', 400, res);
+        }
+
         const category = await ProductCategory.findOne({ _id: id })
 
         if (!category) {
@@ -86,6 +89,11 @@ exports.update = async (req, res) => {
     try {
         const { name, description } = req.body
         const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid category ID format', 400, res);
+        }
+
 
         const { error } = updateProductCategory.validate(req.body, { abortEarly: false })
 
@@ -118,15 +126,17 @@ exports.update = async (req, res) => {
 exports.delete = async (req, res) => {
     try {
         const { id } = req.params;
+        if (!isValidObjectId(id)) {
+            return handleError('Invalid category ID format', 400, res);
+        }
 
         const category = await ProductCategory.findOne({ _id: id })
-
         if (!category) {
-            handleError('Invailid category ID.', 400, res)
+            handleError('Category ID not exist.', 400, res)
             return
         }
 
-        await ProductCategory.deleteOne({ _id: category._id })
+        await ProductCategory.updateOne({ _id: category._id }, { isDeleted: true }, { new: true })
 
         handleResponse(res, { message: 'ProductCategory successfully removed.' }, 'ProductCategory successfully removed.', 200)
     }
