@@ -3,7 +3,19 @@ const { handleError, handleResponse } = require("../utils/helper");
 const { Coin } = require("../modals");
 
 exports.addCoins = async (req, res) => {
+    try {
+        const { coins, coins_amount } = req.body
 
+        const data = { coins, coins_amount };
+        const coinData = new Coin(data);
+
+        await coinData.save();
+
+        handleResponse(res, coinData._doc, 'Coins and amount successfully added.', 201)
+
+    } catch (error) {
+        handleError(error, 400, res);
+    }
 }
 
 exports.updateCoinConversion = async (req, res) => {
