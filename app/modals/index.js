@@ -28,23 +28,20 @@ const db = {
   WishList: require('./wishList'),
   AddToCart: require('./addToCart'),
   ProductVariant: require('./variant'),
-  Brochure:require('./brochure'),
-  Prescription:require('./prescription'),
-  
-  
-  Order:require('./order'),
-  Discount:require('./discount'),
-
-  Inventory:require('./inventory'),
-
-  Document:require('./document'),
-  Transaction:require('./transaction'),
+  Brochure: require('./brochure'),
+  Prescription: require('./prescription'),
 
 
+  Order: require('./order'),
+  Discount: require('./discount'),
 
+  Inventory: require('./inventory'),
 
+  Document: require('./document'),
+  Transaction: require('./transaction'),
 
-
+  Vollet: require('./vollet'),
+  Coin: require('./coin'),
 };
 
 module.exports = db;

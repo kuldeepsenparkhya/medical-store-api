@@ -22,6 +22,9 @@ module.exports = {
     documents: require('./document'),
 
 
-    produtVariants: require('./productVarient')
+    produtVariants: require('./productVarient'),
 
+
+    reminders: require('./reminder'),
+    coins: require('./coin'),
 }

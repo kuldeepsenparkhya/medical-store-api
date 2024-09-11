@@ -1,5 +1,9 @@
 require('dotenv').config();
 const express = require('express');
+
+const cron = require("node-cron");
+
+
 const passport = require('passport');
 const session = require('express-session');
 const path = require('path');
@@ -8,8 +12,11 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const { authJWT } = require('./app/middlewares/auth');
 const { PORT } = require('./app/config/config');
+const { reminderOrder } = require('./app/controllers/reminder');
+
 // const HOST = '192.168.0.23';
 // Initialize Passport
+
 require('./app/config/passport-setup'); // Ensure this is required to initialize Passport
 
 const app = express();
@@ -50,6 +57,8 @@ require('./app/routes/addressBook')(app);
 require('./app/routes/addToCart')(app);
 
 require('./app/routes/discount')(app);
+require('./app/routes/reminder')(app);
+
 
 app.use(authJWT);
 
@@ -64,6 +73,15 @@ require('./app/routes/order')(app);
 
 require('./app/routes/inventory')(app);
 require('./app/routes/variant')(app);
+require('./app/routes/coin')(app);
+
+
+
+
+// Creating a cron job which runs on every 10 second 
+cron.schedule("*/60 * * * * *", async function () {
+    console.log("running a task every 10 second", await reminderOrder());
+});
 
 
 app.get('*', (req, res) => {
