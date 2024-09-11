@@ -8,6 +8,8 @@ module.exports = app => {
     router.post('/products', authJWT, adminAccess, filesUploader, products.create)
     router.get('/products', products.find)
     router.get('/all/products', products.getAllTrashProducts)
+    router.get('/all/deleted/products', products.getAllDeletedProducts)
+
 
     router.get('/products/:id', products.findOne)
     router.delete('/products/:id', authJWT, adminAccess, products.removeProduct)
