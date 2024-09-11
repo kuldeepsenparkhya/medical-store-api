@@ -530,8 +530,14 @@ exports.getAllTrashProducts = async (req, res) => {
             });
         }
 
+
+     // Filter out deleted products
+     const filterDeleted = { isDeleted: false };
+
+
         const pipeline = [
             ...searchFilter,
+            { $match: filterDeleted },
             { $skip: skip },
             { $limit: parseInt(limit, 10) },
             {
@@ -603,9 +609,9 @@ exports.getAllTrashProducts = async (req, res) => {
 
         const getTrashProducts = productsWithDiscounts.filter((value) => value.isDeleted === false)
 
-        const totalCount = await Product.countDocuments();
+        const totalCount = await Product.countDocuments(filterDeleted);
 
-        const getPaginationResult = await getPagination(req.query, getTrashProducts, totalCount);
+        const getPaginationResult = await getPagination(req.query, productsWithDiscounts, totalCount);
 
         handleResponse(res, getPaginationResult, 200);
 

@@ -27,4 +27,8 @@ module.exports = {
 
     reminders: require('./reminder'),
     coins: require('./coin'),
+
+    vollets: require('./vollet'),
+
+    loyalities: require('./vollet'),
 }

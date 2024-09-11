@@ -35,7 +35,7 @@ exports.updateCoinConversion = async (req, res) => {
 
         await Coin.updateOne({ _id: getCoin._id }, { coins, coins_amount }, { new: true })
 
-        handleResponse(res, 'Update, coins and amount successfully.', 'Update coins and amount successfully.', 200)
+        handleResponse(res, [], 'Update coins and amount successfully.', 200)
 
     } catch (error) {
         handleError(error, 400, res);

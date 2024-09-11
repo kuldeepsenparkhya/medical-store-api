@@ -138,6 +138,7 @@ exports.create = async (req, res) => {
         generateInvoice(invoiceData)
 
         const subject = 'Thank You for Your Purchase!';
+        
         const message = `
                         <div style="margin:auto; width:70%">
                             <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
@@ -221,6 +222,8 @@ exports.create = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
+
+
 
 exports.findAllOrders = async (req, res) => {
     try {

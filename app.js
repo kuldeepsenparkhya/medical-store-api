@@ -74,7 +74,7 @@ require('./app/routes/order')(app);
 require('./app/routes/inventory')(app);
 require('./app/routes/variant')(app);
 require('./app/routes/coin')(app);
-
+require('./app/routes/vollet')(app);
 
 
 

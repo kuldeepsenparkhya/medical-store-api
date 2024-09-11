@@ -42,6 +42,8 @@ const db = {
 
   Vollet: require('./vollet'),
   Coin: require('./coin'),
+  LoyaltyRange: require('./loyaltyRange'),
+
 };
 
 module.exports = db;
