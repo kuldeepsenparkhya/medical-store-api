@@ -7,7 +7,7 @@ const path = require("path");
 
 module.exports = app => {
     router.post('/orders', orders.create);
-    router.get('/orders', adminAccess, orders.findAllOrders);
+    router.get('/orders',  orders.findAllOrders);
 
     router.get('/orders/user/:user_id', adminAccess, orders.findOrdersByUserId);
     router.get('/user/orders', orders.findAllUserOrders);

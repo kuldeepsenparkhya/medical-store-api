@@ -335,7 +335,7 @@ exports.getProducts = async (productIds) => {
 
         const pipeline = [
             { $match: { _id: { $in: objectIds } } },
-                {
+            {
                 $lookup: {
                     from: 'media',
                     localField: '_id',
@@ -351,7 +351,7 @@ exports.getProducts = async (productIds) => {
                     as: 'productVariant'
                 }
             },
-      
+
             { $unwind: { path: '$mediaFiles', preserveNullAndEmptyArrays: true } },
         ];
 
@@ -361,5 +361,119 @@ exports.getProducts = async (productIds) => {
     } catch (error) {
         console.error('Error occurred while fetching products:', error);
         throw error; // Optional: rethrow error to handle it further up the call stack
+    }
+};
+
+
+exports.remindeEmail = async (name) => {
+    const message = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Order Reminder</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        background-color: #f4f4f4;
+                    }
+                    .container {
+                        width: 100%;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                    }
+                    .header {
+                        text-align: center;
+                        padding-bottom: 10px;
+                        border-bottom: 1px solid #dddddd;
+                    }
+                    .header img {
+                        max-width: 150px;
+                    }
+                    .content {
+                        padding: 20px;
+                    }
+                    .footer {
+                        text-align: center;
+                        font-size: 12px;
+                        color: #999999;
+                        padding: 10px 0;
+                        border-top: 1px solid #dddddd;
+                    }
+                    .button {
+                        display: inline-block;
+                        font-size: 16px;
+                        color: #ffffff;
+                        background-color: #007bff;
+                        padding: 10px 20px;
+                        text-decoration: none;
+                        border-radius: 4px;
+                    }
+                    .button:hover {
+                        background-color: #0056b3;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="https://example.com/logo.png" alt="Company Logo">
+                    </div>
+                    <div class="content">
+                        <h2>Hello ${name},</h2>
+                        <p>We wanted to remind you that your order [Order Number] is still pending. Here are the details:</p>
+                        <ul>
+                            <li><strong>Order Number:</strong> [Order Number]</li>
+                            <li><strong>Order Date:</strong> [Order Date]</li>
+                            <li><strong>Item(s):</strong> [Item Details]</li>
+                            <li><strong>Total Amount:</strong> [Total Amount]</li>
+                        </ul>
+                        <p>If you have any questions or need further assistance, please do not hesitate to reach out to us.</p>
+                        <a href="[Order Link]" class="button">View Your Order</a>
+                    </div>
+                    <div class="footer">
+                        <p>Thank you for shopping with us!</p>
+                        <p>Best regards, <br>Your Company Name</p>
+                        <p><a href="mailto:support@example.com">support@example.com</a> | <a href="https://example.com">Visit our website</a></p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    return message
+}
+
+
+// Email sending function
+exports.sendRemindMailer = async (email, subject, message) => {
+    const transporter = nodemailer.createTransport({
+        host: process.env.SMPT_EMAIL_HOST,
+        port: process.env.SMPT_EMAIL_PORT,
+        auth: {
+            user: process.env.SMPT_EMAIL_USER,
+            pass: process.env.SMPT_EMAIL_PASSWORD
+        },
+        secure: true
+    });
+
+    const mailOptions = {
+        from: process.env.SMPT_EMAIL_FROM,
+        to: email,
+        subject: `${subject} - Janhit Chemist`,
+        html: message
+    };
+
+    try {
+        return await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error('Email sending error:', error);
+        return error;
     }
 };

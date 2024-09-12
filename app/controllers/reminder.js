@@ -3,26 +3,34 @@ const { Order } = require("../modals")
 exports.reminderOrder = async (req, res) => {
     try {
         const orders = await Order.find()
-        var current = null;
-        var cnt = 0;
 
-        for (let i = 0; i < orders.length; i++) {
-            const order = orders[i];
-            for (let j = 0; j < order.products.length; j++) {
-                const product = order.products[j];
+        function getUniqueDataCount(objArr, propName) {
+            const countMap = {};
 
-                const x = {
-                    userID: order.user_id,
-                    productID: product.product_id,
-                    orderDate: order.createdAt
+            objArr.forEach(order => {
+                if (Array.isArray(propName)) {
+                    propName.forEach(prop => {
+                        if (order[prop]) {
+                            countMap[order[prop]] = (countMap[order[prop]] || 0) + 1;
+                        }
+                    });
+                } else {
+                    if (order[propName]) {
+                        countMap[order[propName]] = (countMap[order[propName]] || 0) + 1;
+                    }
                 }
+            });
 
-                console.log('sssssss', x);
+            const finalData = Object.keys(countMap).map(key => ({
+                [propName]: key,
+                count: countMap[key]
+            }));
 
-            }
+            return finalData
         }
 
-        return 'orders'
+        return getUniqueDataCount(orders, ['user_id'])
+
 
     } catch (error) {
 

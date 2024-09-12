@@ -13,6 +13,8 @@ const morgan = require('morgan');
 const { authJWT } = require('./app/middlewares/auth');
 const { PORT } = require('./app/config/config');
 const { reminderOrder } = require('./app/controllers/reminder');
+const { User } = require('./app/modals');
+const { sendMailer, remindeEmail, sendRemindMailer } = require('./app/utils/helper');
 
 // const HOST = '192.168.0.23';
 // Initialize Passport
@@ -78,11 +80,34 @@ require('./app/routes/vollet')(app);
 
 
 
-// Creating a cron job which runs on every 10 second 
-cron.schedule("*/60 * * * * *", async function () {
-    console.log("running a task every 10 second", await reminderOrder());
-});
 
+// Creating a cron job which runs every hour
+cron.schedule("0 * * * *", async function () {
+    // Creating a cron job which runs every 5 seconds
+    // cron.schedule("0 0 * * *", async function () {
+    // cron.schedule("*/60 * * * * *", async function () {
+    try {
+        const getUsers = await reminderOrder();
+        const subject = 'Reminder: Your Order';
+        // Resolve customer emails
+        const customerEmails = await Promise.all(getUsers?.map(async (item) => {
+            if (item.count >= 2) {
+                const user = await User.findOne({ _id: item.user_id });
+                if (user) {
+
+                    const message = await remindeEmail(user.name);
+                    await sendRemindMailer(user.email, subject, message);
+
+                    return user.email;
+                }
+            }
+            return null; // Return null if no email is found
+        }));
+        console.log("Running a task every 5 seconds", getUsers);
+    } catch (error) {
+        console.error('Error occurred while processing reminder orders:', error);
+    }
+});
 
 app.get('*', (req, res) => {
     res.status(400).send({

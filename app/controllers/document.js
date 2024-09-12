@@ -45,7 +45,6 @@ exports.getDocument = async (req, res) => {
 };
 
 
-
 exports.updateDocument = async (req, res) => {
     try {
         const { type, content } = req.body;
