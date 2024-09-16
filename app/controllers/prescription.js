@@ -12,7 +12,7 @@ exports.create = async (req, res) => {
             return
         };
 
-        let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
+        let file_URL = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
         let mimetype = req?.file ? req?.file?.mimetype : ''
 
         const data = { url: file_URL, mimetype: mimetype, user_id: user_id, status: 'pending' }
@@ -139,8 +139,8 @@ exports.update = async (req, res) => {
             return
         }
 
-        let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
-        let mimetype = req?.file ? req?.file?.mimetype : ''
+        let file_URL = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : prescription.url
+        let mimetype = req?.file ? req?.file?.mimetype : prescription.mimetype
 
         const data = { url: file_URL, mimetype: mimetype }
 

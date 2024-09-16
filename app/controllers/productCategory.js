@@ -17,7 +17,7 @@ exports.create = async (req, res) => {
 
         const validParentCategoryId = (parent_category_id && parent_category_id !== '') ? parent_category_id : null;
 
-        let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
+        let category_img = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
         const data = { name, description, category_img: category_img, parent_category_id: validParentCategoryId }
         const newCategory = new ProductCategory(data);
 
@@ -109,7 +109,7 @@ exports.update = async (req, res) => {
             return
         }
 
-        let category_img = req?.file ? `/media/${req?.file?.filename}` : ''
+        let category_img = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : category.category_img
 
         const data = { name, description, category_img: category_img }
 

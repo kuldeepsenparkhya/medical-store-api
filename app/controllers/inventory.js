@@ -26,8 +26,6 @@ exports.getInventory = async (req, res) => {
 
 
     } catch (error) {
-        console.log('error>>>>>>>>>>', error);
-
         handleError(error, 400, res)
     }
 }

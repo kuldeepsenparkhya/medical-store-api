@@ -14,7 +14,7 @@ exports.create = async (req, res) => {
             return
         }
 
-        let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
+        let file_URL = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
 
         const data = { name, description, brand_logo: file_URL }
         const newBrand = new Brand(data);
@@ -111,12 +111,9 @@ exports.update = async (req, res) => {
             return
         }
 
-        let file_URL = req?.file ? `/media/${req?.file?.filename}` : ''
+        let file_URL = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : brand.brand_logo
 
         const data = { name, description, brand_logo: file_URL }
-
-
-        console.log('file_URL>>>>>>>>', data);
 
         await Brand.updateOne({ _id: brand._id }, data, { new: true })
 

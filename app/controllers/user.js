@@ -133,7 +133,7 @@ exports.update = async (req, res) => {
             return
         }
 
-        const file = req?.file ? `/media/${req?.file?.filename}` : ''
+        const file = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : user.profile
 
         const data = { name, email, mobile, profile: file }
         await User.updateOne({ _id: id }, data, { new: true })
@@ -189,7 +189,10 @@ exports.updateProfile = async (req, res) => {
             return
         }
 
-        const file = req?.file ? `/media/${req?.file?.filename}` : ''
+        const getUser = await User.findOne({ _id: req.user._id })
+
+
+        const file = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : getUser.profile
 
         const data = { name, email, mobile, profile: file }
         await User.updateOne({ _id: req.user._id }, data, { new: true })

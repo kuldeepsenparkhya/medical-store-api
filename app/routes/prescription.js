@@ -9,7 +9,7 @@ module.exports = app => {
     router.get('/prescriptions', prescriptions.find)
     router.get('/prescriptions/:userID', prescriptions.findUserPrescription)
 
-    router.get('/prescriptions/:id', prescriptions.findOne)
+    router.get('/prescriptions/get/:id', prescriptions.findOne)
     
     router.patch('/prescriptions/:id', prescriptions.handlePrescriptionRequest)
 

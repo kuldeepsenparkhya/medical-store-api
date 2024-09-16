@@ -1,4 +1,5 @@
 const { Order } = require("../modals")
+const moment = require('moment'); // Ensure moment.js is installed
 
 exports.reminderOrder = async (req, res) => {
     try {
@@ -33,6 +34,6 @@ exports.reminderOrder = async (req, res) => {
 
 
     } catch (error) {
-
+        return error.message
     }
 }

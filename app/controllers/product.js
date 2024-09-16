@@ -1,9 +1,11 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
-const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount } = require("../modals");
+const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory } = require("../modals");
 
+const fs = require('fs')
 const path = require("path");
 const { isValidObjectId } = require("mongoose");
-const fs = require('fs').promises;
+const csv = require('csv-parser'); // Make sure to install and require the 'csv-parser' package
+
 
 
 exports.create = async (req, res) => {
@@ -37,7 +39,7 @@ exports.create = async (req, res) => {
         if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
             req?.files?.productFiles.forEach((val) => {
                 files.push({
-                    url: `/media/${val.filename}`,
+                    url: `${process.env.BASE_URL}/media/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: newProduct._id
                 });
@@ -53,7 +55,7 @@ exports.create = async (req, res) => {
 
             req?.files?.brochure.forEach((val) => {
                 brochures.push({
-                    url: `/broucher/${val.filename}`,
+                    url: `${process.env.BASE_URL}/broucher/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: newProduct._id
                 });
@@ -324,7 +326,7 @@ exports.update = async (req, res) => {
 
             req?.files?.productFiles.forEach((val) => {
                 files.push({
-                    url: `/media/${val.filename}`,
+                    url: `${process.env.BASE_URL}/media/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: product._id
                 });
@@ -340,7 +342,7 @@ exports.update = async (req, res) => {
 
             req?.files?.brochure.forEach((val) => {
                 brochures.push({
-                    url: `/broucher/${val.filename}`,
+                    url: `${process.env.BASE_URL}/broucher/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: product._id
                 });
@@ -531,8 +533,8 @@ exports.getAllTrashProducts = async (req, res) => {
         }
 
 
-     // Filter out deleted products
-     const filterDeleted = { isDeleted: false };
+        // Filter out deleted products
+        const filterDeleted = { isDeleted: false };
 
 
         const pipeline = [
@@ -674,8 +676,8 @@ exports.getAllDeletedProducts = async (req, res) => {
         }
 
 
-     // Filter out deleted products
-     const filterDeleted = { isDeleted: true };
+        // Filter out deleted products
+        const filterDeleted = { isDeleted: true };
 
 
         const pipeline = [
@@ -760,5 +762,152 @@ exports.getAllDeletedProducts = async (req, res) => {
 
     } catch (error) {
         handleError(error.message, 400, res);
+    }
+};
+
+
+
+exports.createBulkProducts = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send('No file uploaded.');
+        }
+
+        const csvFilePath = req.file.path;
+        const products = [];
+
+        fs.createReadStream(csvFilePath)
+            .pipe(csv())
+            .on('data', (data) => products.push(data))
+            .on('end', async () => {
+                try {
+                    // Map to accumulate data
+                    const productMap = new Map();
+
+                    // Accumulate product and variant data
+                    products.forEach(item => {
+                        if (!productMap.has(item.title)) {
+                            productMap.set(item.title, {
+                                productData: {
+                                    title: item.title,
+                                    description: item.description,
+                                    quantity: item.quantity,
+                                    consume_type: item.consume_type,
+                                    return_policy: item.return_policy,
+                                    expiry_date: item.expiry_date,
+                                    manufacturing_date: item.manufacturing_date,
+                                    sideEffects: item.sideEffects,
+                                    brand_name: item.brand_name,
+                                    product_category: item.product_category,
+                                },
+                                variants: [],
+                                media: item.product_image ? [{ url: item.product_image, mimetype: 'image/jpeg' }] : [],
+                                brochures: item.product_brochure ? [{ url: item.product_brochure, mimetype: 'application/pdf' }] : [],
+                            });
+                        }
+
+                        const productEntry = productMap.get(item.title);
+
+                        if (item.v1_size && item.v1_color) {
+                            productEntry.variants.push({
+                                size: item.v1_size,
+                                color: item.v1_color,
+                                price: item.v1_price,
+                                quantity: item.v1_quantity
+                            });
+                        }
+                        if (item.v2_size && item.v2_color) {
+                            productEntry.variants.push({
+                                size: item.v2_size,
+                                color: item.v2_color,
+                                price: item.v2_price,
+                                quantity: item.v2_quantity
+                            });
+                        }
+                        if (item.v3_size && item.v3_color) {
+                            productEntry.variants.push({
+                                size: item.v3_size,
+                                color: item.v3_color,
+                                price: item.v3_price,
+                                quantity: item.v3_quantity
+                            });
+                        }
+                    });
+
+                    // Process all products and variants
+                    const operations = Array.from(productMap.entries()).map(async ([title, { productData, variants, media, brochures }]) => {
+                        // Find brand and category
+                        const brand = await Brand.findOne({ name: { $regex: new RegExp('^' + productData.brand_name + '$', 'i') } });
+                        if (!brand) throw new Error(`${productData.brand_name} brand does not exist`);
+
+                        const productCategory = await ProductCategory.findOne({ name: { $regex: new RegExp('^' + productData.product_category + '$', 'i') } });
+                        if (!productCategory) throw new Error(`${productData.product_category} product Category does not exist`);
+
+                        // Create product
+                        const product = new Product({
+                            ...productData,
+                            brand_id: brand._id,
+                            product_category_id: productCategory._id,
+                        });
+                        await product.save();
+
+                        // Create variants
+                        const variantPromises = variants.map(async (variant) => {
+                            const newVariant = new ProductVariant({
+                                ...variant,
+                                productId: product._id
+                            });
+                            await newVariant.save();
+
+                            // Create inventory record
+                            const inventoryData = {
+                                product_variant_id: newVariant._id,
+                                product_id: product._id,
+                                total_variant_quantity: variant.quantity,
+                                sale_variant_quantity: 0,
+                            };
+                            const inventory = new Inventory(inventoryData);
+                            await inventory.save();
+                        });
+                        await Promise.all(variantPromises);
+
+                        // Handle media
+                        if (media.length) {
+                            const mediaPromises = media.map(file => new Media({
+                                ...file,
+                                product_id: product._id
+                            }).save());
+                            await Promise.all(mediaPromises);
+                        }
+
+                        // Handle brochures
+                        if (brochures.length) {
+                            const brochurePromises = brochures.map(file => new Brochure({
+                                ...file,
+                                product_id: product._id
+                            }).save());
+                            await Promise.all(brochurePromises);
+                        }
+                    });
+
+                    // Wait for all operations to complete
+                    await Promise.all(operations);
+
+                    // Respond with success
+                    res.status(200).send('File processed and data inserted successfully.');
+
+                } catch (error) {
+                    // Handle errors
+                    console.error('Error occurred during processing:', error);
+                    res.status(400).send({
+                        message: error.message,
+                        error: true
+                    });
+                }
+            });
+
+    } catch (error) {
+        console.error('Error occurred:', error);
+        res.status(500).send('Error occurred while processing the CSV file');
     }
 };

@@ -24,7 +24,7 @@ exports.addProductMedia = async (req, res) => {
         if (req?.files && Array.isArray(req?.files)) {
             req?.files?.forEach((val) => {
                 files.push({
-                    url: `/media/${val.filename}`,
+                    url: `${process.env.BASE_URL}/media/${val.filename}`,
                     mimetype: val.mimetype,
                     product_id: media.product_id
                 });

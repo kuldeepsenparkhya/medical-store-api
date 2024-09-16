@@ -82,10 +82,10 @@ require('./app/routes/vollet')(app);
 
 
 // Creating a cron job which runs every hour
-cron.schedule("0 * * * *", async function () {
-    // Creating a cron job which runs every 5 seconds
-    // cron.schedule("0 0 * * *", async function () {
-    // cron.schedule("*/60 * * * * *", async function () {
+// cron.schedule("0 * * * *", async function () {
+// Creating a cron job which runs every 5 seconds
+// cron.schedule("0 0 * * *", async function () {
+cron.schedule("*/120 * * * * *", async function () {
     try {
         const getUsers = await reminderOrder();
         const subject = 'Reminder: Your Order';
@@ -96,7 +96,7 @@ cron.schedule("0 * * * *", async function () {
                 if (user) {
 
                     const message = await remindeEmail(user.name);
-                    await sendRemindMailer(user.email, subject, message);
+                    // await sendRemindMailer(user.email, subject, message);
 
                     return user.email;
                 }
