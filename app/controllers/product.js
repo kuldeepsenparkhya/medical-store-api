@@ -10,13 +10,44 @@ const csv = require('csv-parser'); // Make sure to install and require the 'csv-
 
 exports.create = async (req, res) => {
     try {
-        const { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants } = req?.body;
+        const {
+            title,
+            description,
+            quantity,
+            consume_type,
+            return_policy,
+            product_category_id,
+            health_category_id,
+            brand_id,
+            expiry_date,
+            manufacturing_date,
+            inStock,
+            sideEffects,
+            variants
+        } = req?.body;
+
         if (!variants) {
             handleError('Product variants are missing', 400, res);
             return
         }
 
-        const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+        const validProductCategoryId = (product_category_id && product_category_id !== '') ? product_category_id : null;
+        const validHealthCategoryId = (health_category_id && health_category_id !== '') ? health_category_id : null;
+
+        const productData = {
+            title,
+            description,
+            quantity,
+            consume_type,
+            return_policy,
+            product_category_id: validProductCategoryId,
+            health_category_id: validHealthCategoryId,
+            brand_id,
+            expiry_date,
+            manufacturing_date,
+            inStock,
+            sideEffects,
+        };
 
         const newProduct = new Product(productData);
         const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
@@ -80,7 +111,8 @@ exports.create = async (req, res) => {
         await newProduct.save();
 
         // Send response
-        handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
+        handleResponse(res,
+            newProduct._doc, 'Product has been created successfully.', 201);
     } catch (error) {
         // Handle any unexpected errors
         handleError(error.message || 'An unexpected error occurred', 400, res);
@@ -90,7 +122,7 @@ exports.create = async (req, res) => {
 
 exports.find = async (req, res) => {
     try {
-        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName } = req.query;
+        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName, healthCategoryName } = req.query;
         const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
         // Construct search filter
@@ -117,25 +149,41 @@ exports.find = async (req, res) => {
             {
                 $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true }
             },
+
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthcategories'
+                }
+            },
+            {
+                $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true }
+            },
+
             {
                 $match: {
                     $or: [
                         { 'brand.name': { $regex: new RegExp(q, 'i') } },
                         { name: { $regex: new RegExp(q, 'i') } },
                         { description: { $regex: new RegExp(q, 'i') } },
-                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } }
+                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } },
+                        { 'healthCategory.name': { $regex: new RegExp(q, 'i') } }
                     ]
                 }
             }
         ] : [];
 
         // Add filters
-        if (minPrice || maxPrice || categoryName) {
+        if (minPrice || maxPrice || categoryName || healthCategoryName) {
             searchFilter.push({
                 $match: {
                     ...(minPrice && { price: { $gte: parseFloat(minPrice) } }),
                     ...(maxPrice && { price: { $lte: parseFloat(maxPrice) } }),
-                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } })
+                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } }),
+                    ...(healthCategoryName && { 'healthCategory.name': { $regex: new RegExp(healthCategoryName, 'i') } })
+
                 }
             });
         }
@@ -187,9 +235,18 @@ exports.find = async (req, res) => {
                     as: 'productCategory'
                 }
             },
-
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthtCategory'
+                }
+            },
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$healthtCategory', preserveNullAndEmptyArrays: true } },
+
             { $sort: { createdAt: sortOrder } }
         ];
 
@@ -198,7 +255,6 @@ exports.find = async (req, res) => {
         const discount = products.map((item) => {
             item.variant.map(async (varient) => {
                 const discount = await Discount.findOne({ discounted_id: varient.discounted_id })
-                console.log('products>>>>>>>>>>>', discount);
             })
         })
 
@@ -231,7 +287,12 @@ exports.findOne = async (req, res) => {
         if (!isValidObjectId(id)) {
             return handleError('Invalid Product ID format', 400, res);
         }
-        const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id')
+        const product = await Product.findOne({ _id: id }).populate('brand_id').populate('product_category_id').populate('health_category_id')
+
+        if (!product) {
+            return handleError('Invalid Product ID', 400, res);
+        }
+
         const media = await Media.find({ product_id: product._id })
         const brochure = await Brochure.find({ product_id: product._id })
 
@@ -264,14 +325,18 @@ exports.update = async (req, res) => {
             return
         }
 
-        const { title, description, sku, quantity, consume_type, return_policy, product_category_id,
+        const { title, description, quantity, consume_type, return_policy, product_category_id, health_category_id,
             brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants, remove_variant, remove_media, remove_brochure } = req?.body;
+
+        const validProductCategoryId = product_category_id
+        const validHealthCategoryId = health_category_id
+
 
         let parsedVariants = [];
 
         parsedVariants = typeof variants === 'string' ? JSON?.parse(variants) : variants
 
-        const productData = { title, description, sku, quantity, consume_type, return_policy, product_category_id, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+        const productData = { title, description, quantity, consume_type, return_policy, product_category_id: validProductCategoryId, health_category_id: validHealthCategoryId, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
 
         // Prepare the update operations
         const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
@@ -482,7 +547,7 @@ exports.getTopSellingProducts = async (req, res) => {
 
 exports.getAllTrashProducts = async (req, res) => {
     try {
-        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName } = req.query;
+        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName, healthCategoryName } = req.query;
         const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
         // Construct search filter
@@ -509,25 +574,41 @@ exports.getAllTrashProducts = async (req, res) => {
             {
                 $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true }
             },
+
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthCategory'
+                }
+            },
+            {
+                $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true }
+            },
+
             {
                 $match: {
                     $or: [
                         { 'brand.name': { $regex: new RegExp(q, 'i') } },
                         { name: { $regex: new RegExp(q, 'i') } },
                         { description: { $regex: new RegExp(q, 'i') } },
-                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } }
+                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } },
+                        { 'healthCategory.name': { $regex: new RegExp(q, 'i') } },
+
                     ]
                 }
             }
         ] : [];
 
         // Add filters
-        if (minPrice || maxPrice || categoryName) {
+        if (minPrice || maxPrice || categoryName || healthCategoryName) {
             searchFilter.push({
                 $match: {
                     ...(minPrice && { price: { $gte: parseFloat(minPrice) } }),
                     ...(maxPrice && { price: { $lte: parseFloat(maxPrice) } }),
-                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } })
+                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } }),
+                    ...(healthCategoryName && { 'healthCategory.name': { $regex: new RegExp(healthCategoryName, 'i') } })
                 }
             });
         }
@@ -586,8 +667,19 @@ exports.getAllTrashProducts = async (req, res) => {
                 }
             },
 
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthCategory'
+                }
+            },
+
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
+
             { $sort: { createdAt: sortOrder } }
         ];
 
@@ -625,7 +717,7 @@ exports.getAllTrashProducts = async (req, res) => {
 
 exports.getAllDeletedProducts = async (req, res) => {
     try {
-        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName } = req.query;
+        const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName, healthCategoryName } = req.query;
         const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
         // Construct search filter
@@ -652,25 +744,41 @@ exports.getAllDeletedProducts = async (req, res) => {
             {
                 $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true }
             },
+
+
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthCategory'
+                }
+            },
+            {
+                $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true }
+            },
             {
                 $match: {
                     $or: [
                         { 'brand.name': { $regex: new RegExp(q, 'i') } },
                         { name: { $regex: new RegExp(q, 'i') } },
                         { description: { $regex: new RegExp(q, 'i') } },
-                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } }
+                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } },
+                        { 'healthCategory.name': { $regex: new RegExp(q, 'i') } }
                     ]
                 }
             }
         ] : [];
 
         // Add filters
-        if (minPrice || maxPrice || categoryName) {
+        if (minPrice || maxPrice || categoryName || healthCategoryName) {
             searchFilter.push({
                 $match: {
                     ...(minPrice && { price: { $gte: parseFloat(minPrice) } }),
                     ...(maxPrice && { price: { $lte: parseFloat(maxPrice) } }),
-                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } })
+                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } }),
+                    ...(healthCategoryName && { 'healthCategory.name': { $regex: new RegExp(healthCategoryName, 'i') } })
+
                 }
             });
         }
@@ -728,9 +836,19 @@ exports.getAllDeletedProducts = async (req, res) => {
                     as: 'productCategory'
                 }
             },
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthtCategory'
+                }
+            },
 
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
+
             { $sort: { createdAt: sortOrder } }
         ];
 

@@ -54,6 +54,8 @@ require('./app/routes/broucher')(app);
 require('./app/routes/product')(app);
 require('./app/routes/brand')(app);
 require('./app/routes/productCategory')(app);
+require('./app/routes/healthCategory')(app);
+
 require('./app/routes/auth/auth')(app);
 require('./app/routes/addressBook')(app);
 require('./app/routes/addToCart')(app);

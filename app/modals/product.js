@@ -28,6 +28,12 @@ const productSchema = Schema({
     ref: 'ProductCategory',
     required: true
   },
+
+  health_category_id: {
+    type: Schema.Types.ObjectId,
+    ref: 'HealthCategory',
+  },
+
   brand_id: {
     type: Schema.Types.ObjectId,
     ref: 'Brand',

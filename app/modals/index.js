@@ -23,6 +23,8 @@ const db = {
   AddressBook: require('./addressBook'),
   Brand: require('./brand'),
   ProductCategory: require('./category'),
+  HealthCategory: require('./healthCategory'),
+
   Product: require('./product'),
   Media: require('./media'),
   WishList: require('./wishList'),

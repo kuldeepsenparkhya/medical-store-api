@@ -6,6 +6,8 @@ module.exports = {
 
     brands: require('./brand'),
     productCategories: require('./productCategory'),
+    healthCategories: require('./healthCategory'),
+
 
     products: require('./product'),
 

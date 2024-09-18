@@ -11,13 +11,14 @@ const mediaSchema = Joi.object({
 const productSchema = Joi.object({
     title: Joi.string().required(),
     description: Joi.string().required(),
-    sku: Joi.string().optional(),
     quantity: Joi.number().required(), // Assuming quantity is a string in your schema
     consume_type: Joi.string()
         .valid('oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal')
         .required(),
     return_policy: Joi.string().required(),
     product_category_id: Joi.string().hex().length(24).required(), // Validating ObjectId as a string with 24 hex characters
+    health_category_id: Joi.string().hex().length(24).optional().allow(null), // Validating ObjectId as a string with 24 hex characters
+
     brand_id: Joi.string().hex().length(24).required(), // Validating ObjectId as a string with 24 hex characters
     media: Joi.array().items(mediaSchema).optional(),
     expiry_date: Joi.date().required(),
@@ -40,6 +41,8 @@ const updateProductSchema = Joi.object({
     ,
     return_policy: Joi.string(),
     product_category_id: Joi.string().hex().length(24), // Validating ObjectId as a string with 24 hex characters
+    health_category_id: Joi.string().hex().length(24).optional().allow(null), // Validating ObjectId as a string with 24 hex characters
+
     brand_id: Joi.string().hex().length(24), // Validating ObjectId as a string with 24 hex characters
     media: Joi.array().items(mediaSchema).optional(),
     expiry_date: Joi.date(),
