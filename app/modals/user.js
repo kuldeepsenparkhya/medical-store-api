@@ -34,6 +34,10 @@ const userSchema = Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
   token: {
     type: String,
   },

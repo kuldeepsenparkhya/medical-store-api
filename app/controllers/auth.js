@@ -17,18 +17,20 @@ exports.login = async (req, res) => {
         }
 
         const user = await User.findOne({ email })
+
         if (!user || !(await user.matchPassword(password))) {
             handleError('Invalid login credentials', 400, res);
             return;
-        } else {
+        }
+        else {
+            if (user.isBlocked) {
+                return res.status(400).send({
+                    error: true,
+                    message: 'Your account has been blocked due to policy violations. If you believe this is a mistake, please contact support for further assistance.'
+                })
+            }
 
-
-            const token = jwt.sign({
-                _id: user._id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-            }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+            const token = jwt.sign({ _id: user._id, email: user.email, name: user.name, role: user.role, }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
             res.status(200).send({
                 token: token,
@@ -44,8 +46,6 @@ exports.login = async (req, res) => {
         handleError(error.message, 400, res)
     }
 }
-
-
 
 // Social Login with google and facebook
 exports.socialLogin = async (req, res) => {
@@ -59,7 +59,6 @@ exports.socialLogin = async (req, res) => {
         }
 
         const user = await User.findOne({ email })
-        console.log('user', user);
 
         if (!user) {
             console.log('IF case');
@@ -69,11 +68,7 @@ exports.socialLogin = async (req, res) => {
             const newUser = new User(data);
             await newUser.save();
 
-            const token = jwt.sign({
-                _id: newUser._id,
-                email: newUser.email,
-                role: 'user',
-            }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+            const token = jwt.sign({ _id: newUser._id, email: newUser.email, role: 'user', }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
             res.status(200).send({
                 token: token,
@@ -83,12 +78,16 @@ exports.socialLogin = async (req, res) => {
             })
         }
         else {
-            const token = jwt.sign({
-                _id: user._id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-            }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+
+            if (user.isBlocked) {
+
+                return res.status(400).send({
+                    error: true,
+                    message: 'Your account has been blocked due to policy violations. If you believe this is a mistake, please contact support for further assistance.'
+                })
+            }
+
+            const token = jwt.sign({ _id: user._id, email: user.email, name: user.name, role: user.role, }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
             res.status(200).send({
                 token: token,
@@ -97,13 +96,11 @@ exports.socialLogin = async (req, res) => {
                 error: false
             })
         }
-
     }
     catch (error) {
         handleError(error.message, 400, res)
     }
 }
-
 
 // Forgot Password function
 exports.forgotPassword = async (req, res) => {
@@ -121,6 +118,13 @@ exports.forgotPassword = async (req, res) => {
         if (!user) {
             handleError('Invalid email address', 400, res);
             return;
+        }
+
+        if (user.isBlocked) {
+            return res.status(400).send({
+                error: true,
+                message: 'Your account has been blocked due to policy violations. If you believe this is a mistake, please contact support for further assistance.'
+            })
         }
 
         const token = Math.floor(100000 + Math.random() * 900000);
@@ -183,9 +187,6 @@ exports.OTPVerify = async (req, res) => {
     } catch (error) {
         handleError(error.message, 400, res);
     }
-
-
-
 }
 
 

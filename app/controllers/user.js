@@ -16,7 +16,7 @@ exports.create = async (req, res) => {
             return
         }
 
-        const data = { name, email, password, mobile, role };
+        const data = { name, email, password, mobile, role, isBlocked: false };
         const newUser = new User(data);
 
         await newUser.save();
@@ -247,6 +247,28 @@ exports.changePassword = async (req, res) => {
     } catch (error) {
         handleError(error.message, 500, res); // Adjust status code as needed
     }
+};
+
+
+exports.blockedUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isBlocked } = req.body
+        const user = await User.findOne({ _id: id })
+        if (!user) {
+            handleError('Invailid user.', 400, res)
+            return
+        }
+
+        await User.updateOne({ _id: id }, { isBlocked }, { new: true })
+        if (isBlocked) {
+            return res.status(200).send({ message: "User has been successfully blocked.", error: false })
+        }
+        return res.status(200).send({ message: "User has been successfully unblocked.", error: false })
+
+    } catch (error) {
+        handleError(error.message, 400, res)
+    };
 };
 
 

@@ -4,7 +4,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const { handleError, handleResponse, generateInvoice, sendMailer } = require("../utils/helper");
+const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
@@ -13,23 +13,25 @@ exports.create = async (req, res) => {
     try {
         const { products, address_id, shipping_charge, order_type } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
+
         if (error) {
             handleError(error, 400, res);
             return
         };
 
         const address = await AddressBook.findOne({ _id: address_id })
+
         if (!address) {
             handleError('Invalid address ID', 400, res);
             return;
         }
 
         const user = await User.findOne({ _id: req?.user?._id })
+
         if (!user) {
             handleError('You need to login', 400, res);
             return;
         }
-
 
         // Check inventory availability
         const outOfStockVariants = [];
@@ -37,6 +39,7 @@ exports.create = async (req, res) => {
 
         await Promise.all(products.map(async (item) => {
             const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+            
             dueQuantity = inventory.total_variant_quantity - inventory.sale_variant_quantity
 
             if (dueQuantity < item.quantity) {
@@ -138,49 +141,8 @@ exports.create = async (req, res) => {
         generateInvoice(invoiceData)
 
         const subject = 'Thank You for Your Purchase!';
-        
-        const message = `
-                        <div style="margin:auto; width:70%">
-                            <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
-                            <div style="margin:50px auto; width:60%; padding:20px 0">
-                                <p style="font-size:25px">Hello ${req.user.name},</p>
-                                <p>Thank you for your purchase! We’re excited to let you know that your order <strong>#${newOrder._id}</strong> has been received and is now being processed.</p>
-                                <p>Here are the details of your order:</p>
-    
-                                <table style="width:100%; border-collapse:collapse;">
-                                <thead>
-                                    <tr>
-                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Item</th>
-                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Quantity</th>
-                                    <th style="border:1px solid #ddd; padding:8px; text-align:left;">Price</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${orderItems.map(item => `
-                                    <tr>
-                                        <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
-                                        <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
-                                        <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
-                                    </tr>
-                                    `).join('')}
-                                </tbody>
-                                </table>
-    
-                                <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
-                                <p>Shipping: <strong>$${shipping_charge}</strong></p>
-                                <p>Total: <strong>$${grandTotal}</strong></p>
-    
-                                <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
-    
-                                <p style="font-size:0.9em;">Thank you for shopping with us!</p>
-                                <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
-    
-                                <hr style="border:none; border-top:1px solid #eee" />
-                                <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
-                            </div>
-                            </div>
-                        </div>
-                        `;
+
+        const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal)
 
         sendMailer(req.user.email, subject, message, res);
 

@@ -7,12 +7,12 @@ const { isValidObjectId } = require("mongoose");
 const csv = require('csv-parser'); // Make sure to install and require the 'csv-parser' package
 
 
-
 exports.create = async (req, res) => {
     try {
         const {
             title,
             description,
+            sku,
             quantity,
             consume_type,
             return_policy,
@@ -37,6 +37,7 @@ exports.create = async (req, res) => {
         const productData = {
             title,
             description,
+            sku,
             quantity,
             consume_type,
             return_policy,
@@ -320,6 +321,7 @@ exports.update = async (req, res) => {
 
         const product = await Product.findOne({ _id: id })
 
+
         if (!product) {
             handleError('Invalid product ID', 400, res);
             return
@@ -340,7 +342,6 @@ exports.update = async (req, res) => {
 
         // Prepare the update operations
         const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
-
             const updatedData = {
                 size: variant.size,
                 price: variant.price,
@@ -349,11 +350,12 @@ exports.update = async (req, res) => {
             };
 
             const inventory = await Inventory.findOne({ product_id: product._id, product_variant_id: variant.id });
+
             await Inventory.updateOne({ product_id: inventory.product_id, product_variant_id: inventory.product_variant_id }, { total_variant_quantity: variant.quantity }, { new: true })
 
             // Update each variant by its ID and product ID
             return ProductVariant.updateOne(
-                { _id: variant.id, productId: product._id },
+                { _id: variant.id, productId: product?._id },
                 { $set: updatedData }
             );
         }) : ''
@@ -437,6 +439,8 @@ exports.update = async (req, res) => {
 
         res.status(200).send({ message: "Product has been successfully update.", error: false })
     } catch (error) {
+        console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error);
+
         handleError(error.message, 400, res)
     };
 };

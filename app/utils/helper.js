@@ -477,3 +477,49 @@ exports.sendRemindMailer = async (email, subject, message) => {
         return error;
     }
 };
+
+exports.orderConfirmationMail = async (name, orderID, orderItems, subTotal, shipping_charge, grandTotal) => {
+    const message = `
+    <div style="margin:auto; width:70%">
+        <div style="font-family: Helvetica, Arial, sans-serif; min-width:1000px; overflow:auto; line-height:2">
+        <div style="margin:50px auto; width:60%; padding:20px 0">
+            <p style="font-size:25px">Hello ${name},</p>
+            <p>Thank you for your purchase! We’re excited to let you know that your order <strong>#${orderID}</strong> has been received and is now being processed.</p>
+            <p>Here are the details of your order:</p>
+
+            <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Item</th>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Quantity</th>
+                <th style="border:1px solid #ddd; padding:8px; text-align:left;">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${orderItems.map(item => `
+                <tr>
+                    <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
+                    <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
+                    <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+            </table>
+
+            <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
+            <p>Shipping: <strong>$${shipping_charge}</strong></p>
+            <p>Total: <strong>$${grandTotal}</strong></p>
+
+            <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
+
+            <p style="font-size:0.9em;">Thank you for shopping with us!</p>
+            <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
+
+            <hr style="border:none; border-top:1px solid #eee" />
+            <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
+        </div>
+        </div>
+    </div>
+    `;
+    return message
+}

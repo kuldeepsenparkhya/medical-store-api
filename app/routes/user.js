@@ -10,6 +10,9 @@ module.exports = app => {
     router.patch('/users/changepassword', users.changePassword)
     router.patch('/users/:id', adminAccess, fileUploader, users.update)
 
+    router.patch('/users/account/status/:id', adminAccess, users.blockedUser)
+
+
     router.patch('/update/profile', fileUploader, users.updateProfile)
     router.get('/me', users.me)
 

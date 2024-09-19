@@ -10,6 +10,11 @@ const productSchema = Schema({
     type: String,
     required: true,
   },
+  sku: {
+    type: String,
+    required: true,
+    unique: true
+  },
   quantity: {
     type: Number,
     required: true,
@@ -60,7 +65,7 @@ const productSchema = Schema({
     type: Boolean,
     default: false,
   },
-  
+
 },
   {
     timestamps: true

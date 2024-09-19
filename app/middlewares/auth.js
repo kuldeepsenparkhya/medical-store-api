@@ -15,11 +15,18 @@ exports.authJWT = async (req, res, next) => {
   if (req.headers.authorization) {
     try {
       const data = await jwt.verify(req.headers.authorization, JWT_SECREATE)
+
+      if (data.isBlocked) {
+        return res.status(400).send({
+          error: true,
+          message: 'Your account has been blocked due to policy violations. If you believe this is a mistake, please contact support for further assistance.'
+        })
+      }
+
       req.user = data;
       return next()
 
     } catch (error) {
-
       return res.status(401).send({
         error: true,
         message: 'Unauthorized access!'
