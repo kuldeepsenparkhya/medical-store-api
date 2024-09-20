@@ -8,6 +8,8 @@ module.exports = app => {
     router.post('/products', authJWT, adminAccess, filesUploader, products.create)
 
     router.post('/products/bulk/insert', authJWT, adminAccess, fileUploader, products.createBulkProducts)
+    
+    router.get('/products/minimum/discounted', products.getMinimumDiscountedProducts)
 
     router.get('/products', products.find)
     router.get('/all/products', products.getAllTrashProducts)
@@ -19,6 +21,7 @@ module.exports = app => {
     router.patch('/products/:id', authJWT, adminAccess, filesUploader, products.update)
 
     router.get('/products/top/sale', products.getTopSellingProducts)
+
 
     app.use('/api', router);
 }

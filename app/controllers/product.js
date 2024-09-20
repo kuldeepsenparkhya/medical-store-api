@@ -720,10 +720,143 @@ exports.getAllTrashProducts = async (req, res) => {
 };
 
 
+exports.getMinimumDiscountedProducts = async (req, res) => {
+    try {
+        const { q, page = 1, limit = 10, sort = 1, categoryName, healthCategoryName, mindiscount = 0 } = req.query;
+        const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+        const sortOrder = parseInt(sort, 10) === 1 ? 1 : -1;
 
+        // Construct search filter
+        const searchFilter = q ? [
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            {
+                $unwind: { path: '$brand', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+            {
+                $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthCategory'
+                }
+            },
+            {
+                $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $match: {
+                    $or: [
+                        { 'brand.name': { $regex: new RegExp(q, 'i') } },
+                        { name: { $regex: new RegExp(q, 'i') } },
+                        { description: { $regex: new RegExp(q, 'i') } },
+                        { 'productCategory.name': { $regex: new RegExp(q, 'i') } },
+                        { 'healthCategory.name': { $regex: new RegExp(q, 'i') } },
+                    ]
+                }
+            }
+        ] : [];
 
+        // Add filters for category and health category
+        if (categoryName || healthCategoryName) {
+            searchFilter.push({
+                $match: {
+                    ...(categoryName && { 'productCategory.name': { $regex: new RegExp(categoryName, 'i') } }),
+                    ...(healthCategoryName && { 'healthCategory.name': { $regex: new RegExp(healthCategoryName, 'i') } })
+                }
+            });
+        }
 
+        // Filter out deleted products
+        const filterDeleted = { isDeleted: false };
 
+        const pipeline = [
+            ...searchFilter,
+            { $match: filterDeleted },
+            { $skip: skip },
+            { $limit: parseInt(limit, 10) },
+            {
+                $lookup: {
+                    from: 'variants',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'variant',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'brochures',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'brochures'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'media',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'mediaFiles'
+                }
+            },
+            { $sort: { createdAt: sortOrder } },
+        ];
+
+        const products = await Product.aggregate(pipeline);
+
+        // Fetch discount details for each variant and filter based on discount >= mindiscount
+        const productsWithDiscounts = await Promise.all(products.map(async (product) => {
+            const variantsWithDiscounts = await Promise.all(product.variant.map(async (variant) => {
+                const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
+
+                // If mindiscount is 0, include products with no discount
+                if (discount) {
+                    if (discount.discount >= mindiscount && discount.discount_type === 'perc') {
+                        return { ...variant, discount };
+                    }
+                } else if (mindiscount === 0) {
+                    // Include variants with no discount if mindiscount is 0
+                    return variant;
+                }
+                return null; // Exclude variants that don't meet the discount condition
+            }));
+
+            // Filter out null variants (those that don't meet discount criteria)
+            const filteredVariants = variantsWithDiscounts.filter(v => v !== null);
+
+            return filteredVariants.length > 0 ? { ...product, variant: filteredVariants } : null;
+        }));
+
+        // Filter out null products (those with no qualifying variants)
+        const filteredProducts = productsWithDiscounts.filter(p => p !== null);
+
+        const totalCount = await Product.countDocuments(filterDeleted);
+
+        const getPaginationResult = await getPagination(req.query, filteredProducts, totalCount);
+
+        handleResponse(res, getPaginationResult, 200);
+
+    } catch (error) {
+        handleError(error.message, 400, res);
+    }
+};
 
 
 exports.getAllDeletedProducts = async (req, res) => {
@@ -893,7 +1026,6 @@ exports.getAllDeletedProducts = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
 
 
 exports.createBulkProducts = async (req, res) => {
