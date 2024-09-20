@@ -183,27 +183,6 @@ exports.create = async (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 exports.findAllOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query

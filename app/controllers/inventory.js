@@ -15,6 +15,8 @@ exports.getInventory = async (req, res) => {
         } : {};
 
         const inventories = await Inventory.find({ ...searchFilter })
+            .populate('product_id')
+            .populate('product_variant_id')
             .skip((page - 1) * limit)
             .limit(parseInt(limit))
 
