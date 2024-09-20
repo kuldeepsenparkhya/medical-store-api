@@ -46,6 +46,8 @@ const db = {
   Coin: require('./coin'),
   LoyaltyRange: require('./loyaltyRange'),
 
+  Offer: require('./offer'),
+
 };
 
 module.exports = db;

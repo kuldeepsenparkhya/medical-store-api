@@ -112,10 +112,14 @@ exports.create = async (req, res) => {
         await newProduct.save();
 
         // Send response
-        handleResponse(res,
-            newProduct._doc, 'Product has been created successfully.', 201);
+        handleResponse(res, newProduct._doc, 'Product has been created successfully.', 201);
     } catch (error) {
         // Handle any unexpected errors
+        if (error.code === 11000) {
+            handleError('This product SKU is already exists.', 400, res)
+            return
+        };
+
         handleError(error.message || 'An unexpected error occurred', 400, res);
     }
 };
@@ -320,7 +324,6 @@ exports.update = async (req, res) => {
         }
 
         const product = await Product.findOne({ _id: id })
-
 
         if (!product) {
             handleError('Invalid product ID', 400, res);

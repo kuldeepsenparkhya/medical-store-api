@@ -33,4 +33,7 @@ module.exports = {
     vollets: require('./vollet'),
 
     loyalities: require('./vollet'),
+
+    offers: require('./offer'),
+
 }
