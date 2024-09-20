@@ -4,10 +4,10 @@ const { handleResponse, handleError, getPagination } = require("../utils/helper"
 
 exports.createOffer = async (req, res) => {
     try {
-        const { title, description, validateTo } = req.body
+        const { title, description, validateTo, coupon_code, discount, discount_type } = req.body
         let file_URL = `${process.env.BASE_URL}/media/${req?.file?.filename}`
 
-        const data = { title, description, validateTo, offerBanner: file_URL }
+        const data = { title, description, validateTo, offerBanner: file_URL, coupon_code, discount, discount_type }
         const newOffer = new Offer(data);
 
         await newOffer.save();
@@ -73,7 +73,7 @@ exports.findOne = async (req, res) => {
 
 exports.update = async (req, res) => {
     try {
-        const { title, description, validateTo } = req.body
+        const { title, description, validateTo, coupon_code, discount, discount_type } = req.body
         const { id } = req.params;
 
 
@@ -90,7 +90,7 @@ exports.update = async (req, res) => {
 
         let file_URL = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : offer.offerBanner
 
-        const data = { title, description, validateTo, offerBanner: file_URL }
+        const data = { title, description, validateTo, offerBanner: file_URL, coupon_code, discount, discount_type }
 
         await Offer.updateOne({ _id: offer._id }, data, { new: true })
 

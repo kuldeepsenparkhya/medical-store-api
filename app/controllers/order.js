@@ -147,7 +147,6 @@ exports.create = async (req, res) => {
         sendMailer(req.user.email, subject, message, res);
 
         if (order_type === 'prepaid') {
-
             var razorPayIinstance = new Razorpay({
                 key_id: 'rzp_test_GcZZFDPP0jHtC4',
                 key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
@@ -178,12 +177,30 @@ exports.create = async (req, res) => {
         handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
 
     } catch (error) {
-
         console.log('error>>>>>>>', error);
-
         handleError(error.message, 400, res);
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

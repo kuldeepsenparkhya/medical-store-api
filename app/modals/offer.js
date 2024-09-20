@@ -15,6 +15,15 @@ const offerSchema = Schema({
     offerBanner: {
         type: String,
     },
+    coupon_code: {
+        type: String,
+    },
+    discount: {
+        type: Number,
+    },
+    discount_type: {
+        type: String,
+    },
 }, {
     timestamps: true
 })

@@ -58,6 +58,7 @@ exports.create = async (req, res) => {
                 variant.discounted_id = variant.discounted_id ? variant.discounted_id : null
                 const data = {
                     ...variant,
+                    isDeleted: false,
                     productId: newProduct._id
                 }
                 return data
@@ -369,7 +370,7 @@ exports.update = async (req, res) => {
         // Remove Product variants
         const correctedStr = remove_variant?.replace(/'/g, '"');
         const varientIds = correctedStr && JSON?.parse(correctedStr);
-        varientIds?.map(async (v) => await ProductVariant.deleteOne({ _id: v, productId: product._id }))
+        varientIds?.map(async (v) => await ProductVariant.updateOne({ _id: v, productId: product._id }, { isDeleted: true }, { new: true }))
 
         // Remove Medias
         const correctedMediaStr = remove_media?.replace(/'/g, '"');
@@ -635,11 +636,9 @@ exports.getAllTrashProducts = async (req, res) => {
                     from: 'variants',
                     localField: '_id',
                     foreignField: 'productId',
-                    as: 'variant'
+                    as: 'variant',
                 },
-
             },
-
             {
                 $lookup: {
                     from: 'brochures',
@@ -673,7 +672,6 @@ exports.getAllTrashProducts = async (req, res) => {
                     as: 'productCategory'
                 }
             },
-
             {
                 $lookup: {
                     from: 'healthcategories',
@@ -687,7 +685,19 @@ exports.getAllTrashProducts = async (req, res) => {
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
 
-            { $sort: { createdAt: sortOrder } }
+            { $sort: { createdAt: sortOrder } },
+
+            {
+                $addFields: {
+                    variant: {
+                        $filter: {
+                            input: '$variant',
+                            as: 'v',
+                            cond: { $eq: ['$v.isDeleted', false] } // Filter out deleted variants
+                        }
+                    }
+                }
+            }
         ];
 
         const products = await Product.aggregate(pipeline);
