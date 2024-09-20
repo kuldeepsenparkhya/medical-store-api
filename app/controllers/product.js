@@ -686,17 +686,6 @@ exports.getAllTrashProducts = async (req, res) => {
             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
 
             { $sort: { createdAt: sortOrder } },
-            {
-                $addFields: {
-                    variant: {
-                        $filter: {
-                            input: '$variant',
-                            as: 'v',
-                            cond: { $eq: ['$$v.isDeleted', false] } // Filter out deleted variants
-                        }
-                    }
-                }
-            }
         ];
 
         const products = await Product.aggregate(pipeline);
