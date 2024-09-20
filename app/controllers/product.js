@@ -686,14 +686,13 @@ exports.getAllTrashProducts = async (req, res) => {
             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
 
             { $sort: { createdAt: sortOrder } },
-
             {
                 $addFields: {
                     variant: {
                         $filter: {
                             input: '$variant',
                             as: 'v',
-                            cond: { $eq: ['$v.isDeleted', false] } // Filter out deleted variants
+                            cond: { $eq: ['$$v.isDeleted', false] } // Filter out deleted variants
                         }
                     }
                 }
@@ -730,6 +729,12 @@ exports.getAllTrashProducts = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
+
+
+
+
+
+
 
 
 exports.getAllDeletedProducts = async (req, res) => {

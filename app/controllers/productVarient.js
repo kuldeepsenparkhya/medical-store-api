@@ -15,7 +15,8 @@ exports.create = async (req, res) => {
                 size: item.size,
                 price: item.price,
                 discounted_id: item.discounted_id ? item.discounted_id : null,
-                quantity: item.quantity
+                quantity: item.quantity,
+                isDeleted: false
             };
             return data;
         }));
