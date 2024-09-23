@@ -17,6 +17,7 @@ const offerSchema = Schema({
     },
     coupon_code: {
         type: String,
+        unique: true,
     },
     discount: {
         type: Number,
@@ -24,6 +25,10 @@ const offerSchema = Schema({
     discount_type: {
         type: String,
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true
 })

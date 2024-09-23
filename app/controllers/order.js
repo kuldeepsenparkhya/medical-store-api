@@ -11,7 +11,7 @@ const { isValidObjectId } = require('mongoose');
 
 exports.create = async (req, res) => {
     try {
-        const { products, address_id, shipping_charge, order_type } = req.body
+        const { products, address_id, shipping_charge, order_type, coupon_code } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
 
         if (error) {
@@ -39,7 +39,7 @@ exports.create = async (req, res) => {
 
         await Promise.all(products.map(async (item) => {
             const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-            
+
             dueQuantity = inventory.total_variant_quantity - inventory.sale_variant_quantity
 
             if (dueQuantity < item.quantity) {
@@ -65,15 +65,16 @@ exports.create = async (req, res) => {
             return item;
         })
 
+
         let subTotal = 0;
+
         newData.forEach(item => {
             subTotal += item.total;
         });
 
         const grandTotal = subTotal + shipping_charge
 
-
-        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal }
+        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, coupon_code }
 
         const newOrder = new Order(data);
 
@@ -183,6 +184,10 @@ exports.create = async (req, res) => {
 };
 
 
+
+
+
+
 exports.findAllOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
@@ -277,6 +282,9 @@ exports.findAllOrders = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
+
+
+
 
 exports.findOrdersByUserId = async (req, res) => {
     try {

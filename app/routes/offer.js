@@ -8,6 +8,9 @@ module.exports = app => {
     router.get('/offers', offers.find)
     router.get('/offers/:id', offers.findOne)
 
+    router.post('/coupon/offers', offers.getCouponData)
+
+
     router.patch('/offers/:id', authJWT, adminAccess, fileUploader, offers.update)
     router.delete('/offers/:id', offers.delete)
 

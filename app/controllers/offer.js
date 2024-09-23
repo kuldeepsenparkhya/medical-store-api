@@ -1,13 +1,21 @@
 const { isValidObjectId } = require("mongoose");
 const { Offer } = require("../modals");
 const { handleResponse, handleError, getPagination } = require("../utils/helper");
+const { createOfferSchema } = require("./joiValidator/offerJoiSchema");
 
 exports.createOffer = async (req, res) => {
     try {
         const { title, description, validateTo, coupon_code, discount, discount_type } = req.body
+        const { error } = createOfferSchema.validate(req.body, { abortEarly: false })
+
+        if (error) {
+            handleError(error, 400, res)
+            return
+        }
+
         let file_URL = `${process.env.BASE_URL}/media/${req?.file?.filename}`
 
-        const data = { title, description, validateTo, offerBanner: file_URL, coupon_code, discount, discount_type }
+        const data = { title, description, validateTo, offerBanner: file_URL, isDeleted: false, coupon_code, discount, discount_type }
         const newOffer = new Offer(data);
 
         await newOffer.save();
@@ -15,6 +23,10 @@ exports.createOffer = async (req, res) => {
         handleResponse(res, newOffer._doc, 'Offer added successfully.', 201)
 
     } catch (error) {
+        if (error.code === 11000) {
+            handleError('This coupon code is already exists.', 400, res)
+            return
+        }
         handleError(error.message, 400, res)
     }
 }
@@ -56,6 +68,24 @@ exports.findOne = async (req, res) => {
         }
 
         const offer = await Offer.findOne({ _id: id })
+
+        if (!offer) {
+            handleError('Offer is not exist.', 400, res)
+            return
+        }
+
+        const offerData = await Offer.findOne({ _id: offer._id })
+
+        handleResponse(res, offerData._doc, 200)
+    } catch (error) {
+        handleError(error.message, 400, res)
+    };
+};
+
+
+exports.getCouponData = async (req, res) => {
+    try {
+        const offer = await Offer.findOne({ coupon_code: req.body.coupon_code })
 
         if (!offer) {
             handleError('Offer is not exist.', 400, res)
@@ -117,7 +147,7 @@ exports.delete = async (req, res) => {
             return
         }
 
-        await Offer.deleteOne({ _id: offer._id })
+        await Offer.updateOne({ _id: offer._id }, { isDeleted: true }, { new: true })
 
         handleResponse(res, { message: 'Offer successfully removed.' }, 'Offer successfully removed.', 200)
     }
