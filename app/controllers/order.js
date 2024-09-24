@@ -148,11 +148,15 @@ exports.create = async (req, res) => {
 
         const subject = 'Thank You for Your Purchase!';
 
-        const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal)
+        const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type)
 
         sendMailer(req.user.email, subject, message, res);
 
-        if (order_type === 'prepaid') {
+        if (order_type === 'PREPAID') {
+            console.log('ddddd');
+
+
+
             var razorPayIinstance = new Razorpay({
                 key_id: 'rzp_test_GcZZFDPP0jHtC4',
                 key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
@@ -800,3 +804,27 @@ exports.getAllPayments = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch payments", error: error.message });
     }
 };
+
+
+
+exports.salesReport = async (req, res) => {
+    try {
+
+        const orders = await Order.find({ status: 'pending', order_type: 'COD' }, { total: 1 })
+
+        const transaction = await Transaction.find({ status: 'success' }, { paid_amount: 1 })
+
+
+        const totalSum = orders.reduce((accumulator, order) => {
+            return accumulator + order.total;
+        }, 0)
+
+        res.send({
+            totalSalesCOD: totalSum.toFixed(2),
+            totalSalesPREPAID: totalSum.toFixed(2)
+
+        })
+    } catch (error) {
+
+    }
+}

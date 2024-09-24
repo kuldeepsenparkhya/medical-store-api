@@ -27,5 +27,9 @@ module.exports = app => {
     router.get('/payments', orders.getAllPayments);
 
 
+    router.get('/sales/report', orders.salesReport);
+
+
+
     app.use('/api', router);
 };

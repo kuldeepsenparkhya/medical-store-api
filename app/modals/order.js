@@ -61,6 +61,12 @@ const orderSchema = Schema({
         default: 'pending',
         required: true,
     },
+    order_type: {
+        type: String,
+        enum: ['COD', 'PREPAID'],
+        default: 'COD',
+        required: true,
+    },
 },
     {
         timestamps: true

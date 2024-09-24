@@ -497,7 +497,6 @@ exports.getTopSellingProducts = async (req, res) => {
         // Aggregate and sort products
         const productQuantities = aggregateProductQuantities(orders);
         const sortedProducts = sortProductsByQuantity(productQuantities);
-        console.log('Sorted products:', sortedProducts);
 
         // Fetch product details and related data
         const products = await Promise.all(sortedProducts.map(async (item) => {
@@ -505,30 +504,33 @@ exports.getTopSellingProducts = async (req, res) => {
                 // Fetch the product with populated fields
                 const product = await Product.findOne({ _id: item.product_id })
                     .populate('brand_id')
-                    .populate('product_category_id');
+                    .populate('product_category_id')
 
                 if (!product) {
                     console.error(`Product not found for ID: ${item.product_id}`);
                     return null;
                 }
 
-                console.log(`Product found for ID: ${item.product_id}`, product);
-
                 // Fetch related media, brochure, and variants
                 const media = await Media.find({ product_id: product._id });
                 const brochure = await Brochure.find({ product_id: product._id });
                 const variants = await ProductVariant.find({ productId: product._id });
 
-                console.log(`Media for product ${product._id}:`, media);
-                console.log(`Brochure for product ${product._id}:`, brochure);
-                console.log(`Variants for product ${product._id}:`, variants);
+                // Fetch discount data for each variant
+                const variantsWithDiscounts = await Promise.all(variants.map(async (variant) => {
+                    const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
+                    return {
+                        ...variant.toObject(),
+                        discount: discount ? discount.toObject() : null // Include discount data if it exists
+                    };
+                }));
 
                 // Ensure product is converted to a plain object
                 const productObj = product.toObject ? product.toObject() : product;
 
                 // Add related data to product object
+                productObj.variants = variantsWithDiscounts; // Add variants with discounts
                 productObj.media = media;
-                productObj.variants = variants;
                 productObj.brochure = brochure;
 
                 return productObj;
@@ -540,9 +542,6 @@ exports.getTopSellingProducts = async (req, res) => {
 
         // Filter out null products (in case any were not found or had errors)
         const filteredProducts = products.filter(p => p !== null);
-
-        // Debug output
-        console.log('Filtered products:', filteredProducts);
 
         // Send the result
         res.send({ result: filteredProducts });
