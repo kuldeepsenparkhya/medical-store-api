@@ -808,66 +808,6 @@ exports.getAllPayments = async (req, res) => {
 };
 
 
-
-// exports.salesReport = async (req, res) => {
-//     try {
-//         const { period } = req.query;
-//         const trimmedPeriod = period ? period.trim() : 'weekly'; // Default to 'weekly' if not provided
-//         console.log('Requested period:', trimmedPeriod); // Log the incoming period
-
-//         const currentDate = new Date();
-//         let startDate;
-//         switch (trimmedPeriod) {
-//             case 'weekly':
-//                 startDate = new Date(currentDate.setDate(currentDate.getDate() - 7));
-//                 break;
-//             case 'monthly':
-//                 startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
-//                 break;
-//             case 'quarterly':
-//                 startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
-//                 break;
-//             case 'yearly':
-//                 startDate = new Date(currentDate.setFullYear(currentDate.getFullYear() - 1));
-//                 break;
-//             default:
-//                 return res.status(400).send({ error: 'Invalid period specified' });
-//         }
-
-//         // Fetch orders and transactions within the specified date range
-//         const orders = await Order.find({
-//             status: 'pending',
-//             order_type: 'COD',
-//             createdAt: { $gte: startDate } // Assuming there's a createdAt field
-//         }, { total: 1 });
-
-//         const transactions = await Transaction.find({
-//             status: 'created',
-//             createdAt: { $gte: startDate } // Assuming there's a createdAt field
-//         }, { paid_amount: 1 });
-
-//         // Calculate total sums
-//         const totalSum = orders.reduce((accumulator, order) => {
-//             return accumulator + order.total;
-//         }, 0);
-
-//         const totalPrepaidSum = transactions.reduce((accumulator, transaction) => {
-//             return accumulator + transaction.paid_amount;
-//         }, 0);
-
-//         res.status(200).send({
-//             totalSalesCOD: totalSum.toFixed(2),
-//             totalSalesPREPAID: totalPrepaidSum.toFixed(2),
-//             grandTotalSales: (totalPrepaidSum + totalSum).toFixed(2)
-//         });
-//     } catch (error) {
-//         console.log('error>>>>>>>', error);
-//         handleError(error.message, 400, res);
-//     }
-// };
-
-
-
 exports.salesReport = async (req, res) => {
     try {
         const { startDate: startDateParam, endDate: endDateParam } = req.query;
@@ -891,12 +831,12 @@ exports.salesReport = async (req, res) => {
             status: 'pending',
             order_type: 'COD',
             createdAt: { $gte: startDate, $lte: endDate }
-        }, { total: 1 });
+        }, { total: 1, createdAt: 1 });  // Make sure to include `createdAt` field in query
 
         const transactions = await Transaction.find({
             status: 'created',
             createdAt: { $gte: startDate, $lte: endDate }
-        }, { paid_amount: 1 });
+        }, { paid_amount: 1, createdAt: 1 });  // Make sure to include `createdAt` field in query
 
         // Prepare data structure for yearly sales
         const yearlySales = {};
@@ -906,19 +846,20 @@ exports.salesReport = async (req, res) => {
         const startYear = startDate.getFullYear();
         const endYear = endDate.getFullYear();
 
+        // Initialize arrays for each year from startYear to endYear
         for (let year = startYear; year <= endYear; year++) {
-            yearlySales[year] = Array(12).fill(0);
-            yearlyPrepaidSales[year] = Array(12).fill(0);
+            yearlySales[year] = Array(12).fill(0);  // 12 months
+            yearlyPrepaidSales[year] = Array(12).fill(0);  // 12 months
         }
 
         // Aggregate COD sales by year and month
         orders.forEach(order => {
             const orderDate = new Date(order.createdAt);
             const year = orderDate.getFullYear();
-            const month = orderDate.getMonth();
+            const month = orderDate.getMonth();  // Get month index (0-11)
 
             if (yearlySales[year]) {
-                yearlySales[year][month] += order.total;
+                yearlySales[year][month] += order.total;  // Add the total to the correct month
             }
         });
 
@@ -926,10 +867,10 @@ exports.salesReport = async (req, res) => {
         transactions.forEach(transaction => {
             const transactionDate = new Date(transaction.createdAt);
             const year = transactionDate.getFullYear();
-            const month = transactionDate.getMonth();
+            const month = transactionDate.getMonth();  // Get month index (0-11)
 
             if (yearlyPrepaidSales[year]) {
-                yearlyPrepaidSales[year][month] += transaction.paid_amount;
+                yearlyPrepaidSales[year][month] += transaction.paid_amount;  // Add the paid amount to the correct month
             }
         });
 
@@ -946,8 +887,7 @@ exports.salesReport = async (req, res) => {
 
         res.status(200).send(response);
     } catch (error) {
-        console.log('error>>>>>>>', error);
-        handleError(error.message, 400, res);
+        console.log('Error in salesReport:', error);
+        return res.status(500).send({ message: 'Internal server error' });
     }
 };
-
