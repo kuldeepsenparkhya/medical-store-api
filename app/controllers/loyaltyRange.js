@@ -18,8 +18,9 @@ exports.addCoins = async (req, res) => {
 
 exports.getloyalties = async (req, res) => {
     try {
-        const loyaties = await LoyaltyRange.find({});
-        handleResponse(res, loyaties, 'Loyality range has been successfully retrieve.', 201)
+        const loyaties = await LoyaltyRange.find();
+        
+        handleResponse(res, loyaties, 'Loyality range has been successfully retrieve.', 200)
 
     } catch (error) {
         handleError(error, 400, res);

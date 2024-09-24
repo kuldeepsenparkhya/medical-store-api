@@ -83,7 +83,7 @@ exports.create = async (req, res) => {
 
         const grandTotal = couponDiscount.discount_type === 'perc' ? (subTotal + shipping_charge) * (1 - couponDiscount.discount / 100) : (subTotal + shipping_charge) - couponDiscount.discount;
 
-        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, coupon_code }
+        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, coupon_code, order_type }
 
         const newOrder = new Order(data);
 
@@ -153,17 +153,15 @@ exports.create = async (req, res) => {
         sendMailer(req.user.email, subject, message, res);
 
         if (order_type === 'PREPAID') {
-            console.log('ddddd');
-
-
-
             var razorPayIinstance = new Razorpay({
                 key_id: 'rzp_test_GcZZFDPP0jHtC4',
                 key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
             });
 
+            const amount = Math.round(grandTotal * 100);
+
             const options = {
-                amount: grandTotal * 100,
+                amount: amount,
                 currency: 'INR',
                 receipt: `${req.user.name}`,
                 payment_capture: 1
@@ -171,10 +169,14 @@ exports.create = async (req, res) => {
 
             const response = await razorPayIinstance.orders.create(options)
 
+            console.log('response>>>>>>>.', response);
+
+
+
             const transactionData = {
                 transaction_id: response.id,
                 receipt: response.receipt,
-                paid_amount: response.paid_amount,
+                paid_amount: response.amount,
                 currency: response.currency,
                 status: response.status,
                 order_id: newOrder._id,
@@ -807,24 +809,145 @@ exports.getAllPayments = async (req, res) => {
 
 
 
+// exports.salesReport = async (req, res) => {
+//     try {
+//         const { period } = req.query;
+//         const trimmedPeriod = period ? period.trim() : 'weekly'; // Default to 'weekly' if not provided
+//         console.log('Requested period:', trimmedPeriod); // Log the incoming period
+
+//         const currentDate = new Date();
+//         let startDate;
+//         switch (trimmedPeriod) {
+//             case 'weekly':
+//                 startDate = new Date(currentDate.setDate(currentDate.getDate() - 7));
+//                 break;
+//             case 'monthly':
+//                 startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+//                 break;
+//             case 'quarterly':
+//                 startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+//                 break;
+//             case 'yearly':
+//                 startDate = new Date(currentDate.setFullYear(currentDate.getFullYear() - 1));
+//                 break;
+//             default:
+//                 return res.status(400).send({ error: 'Invalid period specified' });
+//         }
+
+//         // Fetch orders and transactions within the specified date range
+//         const orders = await Order.find({
+//             status: 'pending',
+//             order_type: 'COD',
+//             createdAt: { $gte: startDate } // Assuming there's a createdAt field
+//         }, { total: 1 });
+
+//         const transactions = await Transaction.find({
+//             status: 'created',
+//             createdAt: { $gte: startDate } // Assuming there's a createdAt field
+//         }, { paid_amount: 1 });
+
+//         // Calculate total sums
+//         const totalSum = orders.reduce((accumulator, order) => {
+//             return accumulator + order.total;
+//         }, 0);
+
+//         const totalPrepaidSum = transactions.reduce((accumulator, transaction) => {
+//             return accumulator + transaction.paid_amount;
+//         }, 0);
+
+//         res.status(200).send({
+//             totalSalesCOD: totalSum.toFixed(2),
+//             totalSalesPREPAID: totalPrepaidSum.toFixed(2),
+//             grandTotalSales: (totalPrepaidSum + totalSum).toFixed(2)
+//         });
+//     } catch (error) {
+//         console.log('error>>>>>>>', error);
+//         handleError(error.message, 400, res);
+//     }
+// };
+
+
+
 exports.salesReport = async (req, res) => {
     try {
+        const { startDate: startDateParam, endDate: endDateParam } = req.query;
 
-        const orders = await Order.find({ status: 'pending', order_type: 'COD' }, { total: 1 })
+        // Parse the dates from query parameters
+        const startDate = new Date(startDateParam);
+        const endDate = new Date(endDateParam);
 
-        const transaction = await Transaction.find({ status: 'success' }, { paid_amount: 1 })
+        // Validate date inputs
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).send({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
+        }
 
+        // Check if the start date is before the end date
+        if (startDate > endDate) {
+            return res.status(400).send({ error: 'Start date must be before end date.' });
+        }
 
-        const totalSum = orders.reduce((accumulator, order) => {
-            return accumulator + order.total;
-        }, 0)
+        // Fetch orders and transactions within the date range
+        const orders = await Order.find({
+            status: 'pending',
+            order_type: 'COD',
+            createdAt: { $gte: startDate, $lte: endDate }
+        }, { total: 1 });
 
-        res.send({
-            totalSalesCOD: totalSum.toFixed(2),
-            totalSalesPREPAID: totalSum.toFixed(2)
+        const transactions = await Transaction.find({
+            status: 'created',
+            createdAt: { $gte: startDate, $lte: endDate }
+        }, { paid_amount: 1 });
 
-        })
+        // Prepare data structure for yearly sales
+        const yearlySales = {};
+        const yearlyPrepaidSales = {};
+
+        // Populate sales data for the years involved
+        const startYear = startDate.getFullYear();
+        const endYear = endDate.getFullYear();
+
+        for (let year = startYear; year <= endYear; year++) {
+            yearlySales[year] = Array(12).fill(0);
+            yearlyPrepaidSales[year] = Array(12).fill(0);
+        }
+
+        // Aggregate COD sales by year and month
+        orders.forEach(order => {
+            const orderDate = new Date(order.createdAt);
+            const year = orderDate.getFullYear();
+            const month = orderDate.getMonth();
+
+            if (yearlySales[year]) {
+                yearlySales[year][month] += order.total;
+            }
+        });
+
+        // Aggregate PREPAID sales by year and month
+        transactions.forEach(transaction => {
+            const transactionDate = new Date(transaction.createdAt);
+            const year = transactionDate.getFullYear();
+            const month = transactionDate.getMonth();
+
+            if (yearlyPrepaidSales[year]) {
+                yearlyPrepaidSales[year][month] += transaction.paid_amount;
+            }
+        });
+
+        // Create a structured response
+        const response = Object.keys(yearlySales).map(year => ({
+            year,
+            monthlySales: yearlySales[year].map((codSales, monthIndex) => ({
+                month: new Date(year, monthIndex).toLocaleString('default', { month: 'long' }),
+                totalSalesCOD: codSales.toFixed(2),
+                totalSalesPREPAID: (yearlyPrepaidSales[year] && yearlyPrepaidSales[year][monthIndex] || 0).toFixed(2),
+                grandTotalSales: (codSales + (yearlyPrepaidSales[year] && yearlyPrepaidSales[year][monthIndex] || 0)).toFixed(2)
+            }))
+        }));
+
+        res.status(200).send(response);
     } catch (error) {
-
+        console.log('error>>>>>>>', error);
+        handleError(error.message, 400, res);
     }
-}
+};
+

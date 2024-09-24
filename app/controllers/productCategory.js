@@ -23,7 +23,7 @@ exports.create = async (req, res) => {
 
         await newCategory.save();
 
-        handleResponse(res, newCategory._doc, 201)
+        handleResponse(res, newCategory._doc, 'Product category successfully added.', 201)
 
     } catch (error) {
         if (error.code === 11000) {

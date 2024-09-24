@@ -30,7 +30,7 @@ exports.create = async (req, res) => {
 
         const datad = { ...newUser._doc, token }
 
-        handleResponse(res, datad, 201)
+        handleResponse(res, datad, 'User has been registered successfully.', 201)
     } catch (error) {
         if (error.code === 11000) {
             handleError('This email is already exists.', 400, res)

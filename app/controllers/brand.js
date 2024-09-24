@@ -21,7 +21,7 @@ exports.create = async (req, res) => {
 
         await newBrand.save();
 
-        handleResponse(res, newBrand._doc, 201)
+        handleResponse(res, newBrand._doc, 'Brand successfully added.', 201)
 
     } catch (error) {
         if (error.code === 11000) {

@@ -21,7 +21,7 @@ exports.create = async (req, res) => {
         const newAddress = new AddressBook(data);
         await newAddress.save();
         const datad = { ...newAddress._doc, }
-        handleResponse(res, datad, 201)
+        handleResponse(res, datad, 'Address has been successfully added.', 201)
     } catch (error) {
         if (error.code === 11000) {
             handleError('This email is already exists.', 400, res)
