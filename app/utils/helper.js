@@ -74,7 +74,7 @@ exports.sendMailer = async (email, subject, message, res) => {
         await transporter.sendMail(mailOptions);
     } catch (error) {
         console.error('Email sending error:', error);
-        res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
+        // res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
     }
 };
 

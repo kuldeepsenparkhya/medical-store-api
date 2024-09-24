@@ -5,13 +5,17 @@ const orderVailidationSchema = Joi.object({
     address_id: Joi.string().required(),
     shipping_charge: Joi.number().min(0).required(),
     order_type: Joi.string().required(),
+    coupon_code: Joi.string().allow(null).optional(),
+
 
     products: Joi.array().items(Joi.object({
         product_id: Joi.string().required(),
         media_id: Joi.string().required(),
         product_variant_id: Joi.string().required(),
         price: Joi.number().min(0).required(),
-        quantity: Joi.number().min(1).required()
+        quantity: Joi.number().min(1).required(),
+        discount_id: Joi.string().allow(null).optional(),
+
     })).required(),
 });
 

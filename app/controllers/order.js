@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail } = require("../utils/helper");
-const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction } = require('../modals');
+const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
 
@@ -32,6 +32,10 @@ exports.create = async (req, res) => {
             handleError('You need to login', 400, res);
             return;
         }
+
+
+        const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
+
 
         // Check inventory availability
         const outOfStockVariants = [];
@@ -60,10 +64,13 @@ exports.create = async (req, res) => {
             })
         }
 
-        const newData = products.map((item, i) => {
-            item.total = item.quantity * item.price
+
+        // Order 
+        const newData = await Promise.all(products.map(async (item, i) => {
+            const discount = await Discount.findOne({ _id: item.discount_id })
+            item.total = discount.discount_type === 'perc' ? (item.quantity * item.price) * (1 - discount.discount / 100) : (item.quantity * item.price) - discount.discount;
             return item;
-        })
+        }))
 
 
         let subTotal = 0;
@@ -72,7 +79,9 @@ exports.create = async (req, res) => {
             subTotal += item.total;
         });
 
-        const grandTotal = subTotal + shipping_charge
+        console.log('subTotal', subTotal);
+
+        const grandTotal = couponDiscount.discount_type === 'perc' ? (subTotal + shipping_charge) * (1 - couponDiscount.discount / 100) : (subTotal + shipping_charge) - couponDiscount.discount;
 
         const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, coupon_code }
 
@@ -106,11 +115,7 @@ exports.create = async (req, res) => {
             const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id })
 
             if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
-                await ProductVariant.updateOne(
-                    { productId: item.product_id, _id: item.product_variant_id },
-                    { inStock: false },
-                    { new: true }
-                );
+                await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
             }
 
             return {
@@ -182,9 +187,6 @@ exports.create = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
-
-
 
 
 
@@ -282,7 +284,6 @@ exports.findAllOrders = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
 
 
 

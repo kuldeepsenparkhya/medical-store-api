@@ -52,6 +52,9 @@ const orderSchema = Schema({
         type: Number,
         min: 0
     },
+    coupon_code: {
+        type: String,
+    },
     status: {
         type: String,
         enum: ['pending', 'delivered', 'dispatch', 'cancelled'],

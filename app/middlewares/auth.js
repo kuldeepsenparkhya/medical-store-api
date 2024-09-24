@@ -27,10 +27,21 @@ exports.authJWT = async (req, res, next) => {
       return next()
 
     } catch (error) {
-      return res.status(401).send({
-        error: true,
-        message: 'Unauthorized access!'
-      })
+
+
+      // Handle token expiration and other errors
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).send({
+          error: true,
+          message: 'Session expired. Please log in again.'
+        });
+      } else {
+        return res.status(401).send({
+          error: true,
+          message: 'Unauthorized access!'
+        });
+
+      }
     }
   }
   else {
