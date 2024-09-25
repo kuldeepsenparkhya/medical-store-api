@@ -1050,6 +1050,7 @@ exports.createBulkProducts = async (req, res) => {
                             productMap.set(item.title, {
                                 productData: {
                                     title: item.title,
+                                    sku: item.sku,
                                     description: item.description,
                                     quantity: item.quantity,
                                     consume_type: item.consume_type,

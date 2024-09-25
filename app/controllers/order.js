@@ -831,16 +831,17 @@ exports.salesReport = async (req, res) => {
             status: 'pending',
             order_type: 'COD',
             createdAt: { $gte: startDate, $lte: endDate }
-        }, { total: 1, createdAt: 1 });  // Make sure to include `createdAt` field in query
+        }, { total: 1, createdAt: 1 });
 
         const transactions = await Transaction.find({
             status: 'created',
             createdAt: { $gte: startDate, $lte: endDate }
-        }, { paid_amount: 1, createdAt: 1 });  // Make sure to include `createdAt` field in query
+        }, { paid_amount: 1, createdAt: 1 });
 
         // Prepare data structure for yearly sales
         const yearlySales = {};
         const yearlyPrepaidSales = {};
+        const yearlyTotal = {};
 
         // Populate sales data for the years involved
         const startYear = startDate.getFullYear();
@@ -850,6 +851,7 @@ exports.salesReport = async (req, res) => {
         for (let year = startYear; year <= endYear; year++) {
             yearlySales[year] = Array(12).fill(0);  // 12 months
             yearlyPrepaidSales[year] = Array(12).fill(0);  // 12 months
+            yearlyTotal[year] = 0;  // Initialize total sales for each year
         }
 
         // Aggregate COD sales by year and month
@@ -860,6 +862,7 @@ exports.salesReport = async (req, res) => {
 
             if (yearlySales[year]) {
                 yearlySales[year][month] += order.total;  // Add the total to the correct month
+                yearlyTotal[year] += order.total;  // Add to the yearly total
             }
         });
 
@@ -871,6 +874,7 @@ exports.salesReport = async (req, res) => {
 
             if (yearlyPrepaidSales[year]) {
                 yearlyPrepaidSales[year][month] += transaction.paid_amount;  // Add the paid amount to the correct month
+                yearlyTotal[year] += transaction.paid_amount;  // Add to the yearly total
             }
         });
 
@@ -880,9 +884,10 @@ exports.salesReport = async (req, res) => {
             monthlySales: yearlySales[year].map((codSales, monthIndex) => ({
                 month: new Date(year, monthIndex).toLocaleString('default', { month: 'long' }),
                 totalSalesCOD: codSales.toFixed(2),
-                totalSalesPREPAID: (yearlyPrepaidSales[year] && yearlyPrepaidSales[year][monthIndex] || 0).toFixed(2),
-                grandTotalSales: (codSales + (yearlyPrepaidSales[year] && yearlyPrepaidSales[year][monthIndex] || 0)).toFixed(2)
-            }))
+                totalSalesPREPAID: (yearlyPrepaidSales[year][monthIndex] || 0).toFixed(2),
+                grandTotalSales: (codSales + (yearlyPrepaidSales[year][monthIndex] || 0)).toFixed(2)
+            })),
+            totalSalesForYear: yearlyTotal[year].toFixed(2)  // Add total sales for each year
         }));
 
         res.status(200).send(response);
