@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const productOfferSchema = new Schema({
+  name: {
+    type: String,
+    required: true,
+    unique: true
+  },
   discount: {
     type: Number,
     required: true
@@ -9,6 +14,11 @@ const productOfferSchema = new Schema({
   discount_type: {
     type: String,
     enum: ['perc', 'amount'],
+    required: true
+  },
+  discount_offer_type: {
+    type: String,
+    enum: ['combo', 'single'],
     required: true
   },
   status: {
@@ -24,8 +34,4 @@ const productOfferSchema = new Schema({
   timestamps: true
 });
 
-// Create a compound unique index for discount and discount_type
-productOfferSchema.index({ discount: 1, discount_type: 1 }, { unique: true });
-
-// Create model
 module.exports = mongoose.model('Discount', productOfferSchema);

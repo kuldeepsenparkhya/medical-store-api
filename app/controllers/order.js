@@ -5,19 +5,60 @@ const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail } = require("../utils/helper");
-const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount } = require('../modals');
+const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
 
 exports.create = async (req, res) => {
     try {
-        const { products, address_id, shipping_charge, order_type, coupon_code } = req.body
+        const { products, address_id, shipping_charge, order_type, user_wallet_id } = req.body
         const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false });
 
         if (error) {
             handleError(error, 400, res);
             return
         };
+
+        let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
+
+        const requirePrescription = []
+        const comboDiscountProducts = []
+
+        await Promise.all(products.map(async (item) => {
+            if (!req.file) {
+                const getNeededPrescriptions = await Product.findOne({ _id: item.product_id, isRequirePrescription: true })
+                requirePrescription.push(getNeededPrescriptions?.title)
+            }
+
+            // else {
+            //     const discountId = item.discount_id;
+
+            //     // Validate discountId before querying
+            //     if (discountId && typeof discountId === 'string' && discountId.length === 24) {
+
+            //         const discount = await Discount.findOne({ _id: item.discount_id, discount_offer_type: 'combo' })
+            //         if (discount) {
+
+            //             const variant = await ProductVariant.find({ discounted_id: discount._id })
+
+            //             console.log('variant>>>>>>>>>', variant);
+
+            //             comboDiscountProducts.push({ productId: variant.productId, comboOfferId: variant.discounted_id })
+            //         }
+
+            //     } else {
+
+            //     }
+            // }
+        }));
+
+        if (requirePrescription.length > 0) {
+            res.send({
+                message: `Prescription upload is required for the following items: ${requirePrescription}. Please upload your prescription to proceed.`,
+                error: true,
+            })
+            return
+        }
 
         const address = await AddressBook.findOne({ _id: address_id })
 
@@ -34,8 +75,25 @@ exports.create = async (req, res) => {
         }
 
 
-        const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
+        let getCoinAmountValue = 0
 
+        if (user_wallet_id !== null & user_wallet_id === undefined) {
+
+            const userWallet = await UserWallet.findOne({ _id: user_wallet_id })
+
+            if (!userWallet) {
+                handleError('Invalid user_wallet  ID', 400, res);
+                return;
+            }
+
+            const getCoin = await Coin.findOne({})
+            const getOneCoinValue = getCoin.coins_amount / getCoin.coins
+            getCoinAmountValue = userWallet.coins / getOneCoinValue
+
+            await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true })
+        }
+
+        const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
 
         // Check inventory availability
         const outOfStockVariants = [];
@@ -44,7 +102,7 @@ exports.create = async (req, res) => {
         await Promise.all(products.map(async (item) => {
             const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
 
-            dueQuantity = inventory.total_variant_quantity - inventory.sale_variant_quantity
+            dueQuantity = inventory?.total_variant_quantity - inventory?.sale_variant_quantity
 
             if (dueQuantity < item.quantity) {
                 outOfStockVariants.push({
@@ -67,23 +125,49 @@ exports.create = async (req, res) => {
 
         // Order 
         const newData = await Promise.all(products.map(async (item, i) => {
-            const discount = await Discount.findOne({ _id: item.discount_id })
-            item.total = discount.discount_type === 'perc' ? (item.quantity * item.price) * (1 - discount.discount / 100) : (item.quantity * item.price) - discount.discount;
-            return item;
+
+            if (item?.discount_id !== null && item.discount_id === undefined) {
+                const discount = await Discount.findOne({ _id: item?.discount_id })
+                item.total = discount?.discount_type === 'perc' ? (item?.quantity * item.price) * (1 - discount?.discount / 100) : (item.quantity * item.price) - discount?.discount;
+                return item;
+            }
+            else {
+                item.total = item.quantity * item.price
+                return item;
+            }
         }))
 
-
         let subTotal = 0;
-
         newData.forEach(item => {
             subTotal += item.total;
         });
 
-        console.log('subTotal', subTotal);
+        let grandTotal;
 
-        const grandTotal = couponDiscount.discount_type === 'perc' ? (subTotal + shipping_charge) * (1 - couponDiscount.discount / 100) : (subTotal + shipping_charge) - couponDiscount.discount;
+        // Calculate initial total including subtotal and shipping charge
+        const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
 
-        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, coupon_code, order_type }
+        // Check if couponDiscount exists and is valid
+        if (couponDiscount?.discount_type) {
+            if (couponDiscount.discount_type === 'perc') {
+                // Apply percentage discount
+                grandTotal = totalBeforeDiscount * (1 - couponDiscount.discount / 100);
+            } else {
+                // Apply fixed discount
+                grandTotal = totalBeforeDiscount - couponDiscount.discount;
+            }
+        } else {
+            // No discount applied
+            grandTotal = totalBeforeDiscount;
+        }
+
+        // Subtract coin amount value
+        grandTotal -= (getCoinAmountValue);
+
+        const data = {
+            products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type,
+            user_wallet_id, prescription_url: prescription_url
+        }
 
         const newOrder = new Order(data);
 
@@ -99,7 +183,7 @@ exports.create = async (req, res) => {
 
             // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
             const currentSaleQty = getInventory?.sale_variant_quantity || 0;
-            const saleQty = currentSaleQty + item.quantity;
+            const saleQty = Number(currentSaleQty) + Number(item.quantity);
 
             // Ensure saleQty is a valid number
             if (isNaN(saleQty)) {
@@ -152,6 +236,8 @@ exports.create = async (req, res) => {
 
         sendMailer(req.user.email, subject, message, res);
 
+
+
         if (order_type === 'PREPAID') {
             var razorPayIinstance = new Razorpay({
                 key_id: 'rzp_test_GcZZFDPP0jHtC4',
@@ -168,10 +254,6 @@ exports.create = async (req, res) => {
             }
 
             const response = await razorPayIinstance.orders.create(options)
-
-            console.log('response>>>>>>>.', response);
-
-
 
             const transactionData = {
                 transaction_id: response.id,
@@ -585,7 +667,7 @@ exports.downloadInvoice = async (req, res) => {
                 .fontSize(14)
                 .text(`Order Details #${index + 1}:`, 50, 260 + index * 40)
                 .fontSize(12)
-                .text(`Product: ${item.quantity}, Price: ${item.price}`, 50, 280 + index * 40)
+                .text(`Product: ${item.quantity}, Price: ${item?.price}`, 50, 280 + index * 40)
                 .moveDown(); // Move down one line
         });
 

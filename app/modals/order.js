@@ -67,6 +67,12 @@ const orderSchema = Schema({
         default: 'COD',
         required: true,
     },
+    user_wallet_id: {
+        type: mongoose.Schema.Types.ObjectId,
+    },
+    prescription_url: {
+        type: String,
+    },
 },
     {
         timestamps: true

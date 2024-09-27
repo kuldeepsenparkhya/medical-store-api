@@ -3,7 +3,7 @@ const { vollets } = require('../controllers');
 
 module.exports = app => {
 
-    router.get('/vollets', vollets.getVollet)
+    router.get('/wallets', vollets.getVollet)
 
 
     app.use('/api', router);

@@ -22,7 +22,6 @@ const productSchema = Schema({
   consume_type: {
     type: String,
     required: true,
-    // enum: ['oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal'],
   },
   return_policy: {
     type: String,
@@ -65,7 +64,10 @@ const productSchema = Schema({
     type: Boolean,
     default: false,
   },
-
+  isRequirePrescription: {
+    type: Boolean,
+    default: false,
+  },
 },
   {
     timestamps: true

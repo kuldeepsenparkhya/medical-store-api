@@ -5,7 +5,6 @@ const { Coin } = require("../modals");
 exports.addCoins = async (req, res) => {
     try {
         const { coins, coins_amount } = req.body
-
         const data = { coins, coins_amount };
         const coinData = new Coin(data);
 
@@ -47,7 +46,6 @@ exports.getCoin = async (req, res) => {
     try {
         const getCoin = await Coin.findOne({})
         handleResponse(res, getCoin._doc, 'Coin retreive successfully.', 200)
-
     } catch (error) {
         handleError(error, 400, res);
     }

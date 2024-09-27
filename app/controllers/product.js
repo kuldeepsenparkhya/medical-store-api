@@ -23,7 +23,8 @@ exports.create = async (req, res) => {
             manufacturing_date,
             inStock,
             sideEffects,
-            variants
+            variants,
+            isRequirePrescription,
         } = req?.body;
 
         if (!variants) {
@@ -48,6 +49,7 @@ exports.create = async (req, res) => {
             manufacturing_date,
             inStock,
             sideEffects,
+            isRequirePrescription
         };
 
         const newProduct = new Product(productData);
@@ -1071,26 +1073,26 @@ exports.createBulkProducts = async (req, res) => {
 
                         if (item.v1_size && item.v1_color) {
                             productEntry.variants.push({
-                                size: item.v1_size,
-                                color: item.v1_color,
-                                price: item.v1_price,
-                                quantity: item.v1_quantity
+                                size: item?.v1_size,
+                                color: item?.v1_color,
+                                price: item?.v1_price,
+                                quantity: item?.v1_quantity
                             });
                         }
-                        if (item.v2_size && item.v2_color) {
+                        if (item?.v2_size && item?.v2_color) {
                             productEntry.variants.push({
-                                size: item.v2_size,
-                                color: item.v2_color,
-                                price: item.v2_price,
-                                quantity: item.v2_quantity
+                                size: item?.v2_size,
+                                color: item?.v2_color,
+                                price: item?.v2_price,
+                                quantity: item?.v2_quantity
                             });
                         }
-                        if (item.v3_size && item.v3_color) {
+                        if (item?.v3_size && item?.v3_color) {
                             productEntry.variants.push({
-                                size: item.v3_size,
-                                color: item.v3_color,
-                                price: item.v3_price,
-                                quantity: item.v3_quantity
+                                size: item?.v3_size,
+                                color: item?.v3_color,
+                                price: item?.v3_price,
+                                quantity: item?.v3_quantity
                             });
                         }
                     });
@@ -1113,7 +1115,7 @@ exports.createBulkProducts = async (req, res) => {
                         await product.save();
 
                         // Create variants
-                        const variantPromises = variants.map(async (variant) => {
+                        const variantPromises = variants?.map(async (variant) => {
                             const newVariant = new ProductVariant({
                                 ...variant,
                                 productId: product._id

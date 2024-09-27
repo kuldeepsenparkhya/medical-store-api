@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken')
 const bcrypt = require("bcrypt");
 
 const { JWT_EXPIRESIN, JWT_SECREATE } = require("../config/config")
-const { User } = require("../modals")
+const { User, UserWallet } = require("../modals")
 const { handleError, handleResponse, getPagination } = require("../utils/helper")
 const { registerUser, updateUser, changePassword } = require("./joiValidator/userJoiSchema")
 
@@ -29,6 +29,10 @@ exports.create = async (req, res) => {
         }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
         const datad = { ...newUser._doc, token }
+
+        const userWallet = new UserWallet({ user_id: newUser._id, coin: 0 })
+
+        await userWallet.save();
 
         handleResponse(res, datad, 'User has been registered successfully.', 201)
     } catch (error) {
@@ -275,5 +279,9 @@ exports.blockedUser = async (req, res) => {
 // Me get own profile
 exports.me = async (req, res) => {
     const user = await User.findOne({ _id: req.user._id })
-    user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, user._doc, 200)
+    const wallet = await UserWallet.findOne({ user_id: req.user._id });
+    user.WalletBalance = wallet ? wallet.coins : 0; // Set to 0 if no wallet found
+    const userProfile = user.toObject(); // or use user._doc
+    userProfile.walletBalance = user.WalletBalance;
+    user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, userProfile, 'Retrieve your profile', 200)
 }

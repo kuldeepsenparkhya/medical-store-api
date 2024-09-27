@@ -42,10 +42,12 @@ const db = {
   Document: require('./document'),
   Transaction: require('./transaction'),
 
-  Vollet: require('./vollet'),
+  // Loyality program
+  UserWallet: require('./userVollet'), //For user vollet coins
   Coin: require('./coin'),
-  LoyaltyRange: require('./loyaltyRange'),
+  // LoyaltyRange: require('./loyaltyRange'),
 
+  // Offer discount 
   Offer: require('./offer'),
 
 };

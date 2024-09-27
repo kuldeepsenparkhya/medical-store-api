@@ -3,11 +3,12 @@ const { adminAccess } = require('../middlewares/auth');
 
 var router = require('express').Router(); 3
 const path = require("path");
+const { fileUploader } = require('../middlewares/fileUpload');
 
 
 module.exports = app => {
-    router.post('/orders', orders.create);
-    router.get('/orders',  orders.findAllOrders);
+    router.post('/orders', fileUploader, orders.create);
+    router.get('/orders', orders.findAllOrders);
 
     router.get('/orders/user/:user_id', adminAccess, orders.findOrdersByUserId);
     router.get('/user/orders', orders.findAllUserOrders);

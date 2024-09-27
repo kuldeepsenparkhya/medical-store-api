@@ -1,29 +1,39 @@
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { createDiscount } = require("./joiValidator/discountJoiSchema");
-const { Discount } = require("../modals");
+const { Discount, ProductVariant } = require("../modals");
 const { isValidObjectId } = require("mongoose");
 
 exports.create = async (req, res) => {
     try {
-        const { discount, discount_type, status } = req.body;
+        const { name, discount, discount_type, status, discount_offer_type, products } = req.body;
         const { error } = createDiscount.validate(req.body, { abortEarly: false });
-
         if (error) {
             handleError(error, 400, res);
-            return
+            return;
         };
 
-        const data = { discount, discount_type, status }
+        const data = { name, discount, discount_type, status, discount_offer_type }
         const newDiscount = new Discount(data);
+
+        console.log('variants>>>>>', products);
+
+
+        if (products.length > 0) {
+            Promise.all(products.map(async (item) => {
+                const variants = await ProductVariant.find({ _id: item.variantId, productId: item.productId })
+                variants.map(async (val) => await ProductVariant.updateOne({ _id: val._id, productId: val.productId }, { discounted_id: newDiscount._id }, { new: true }))
+            }))
+        }
 
         await newDiscount.save();
 
         handleResponse(res, newDiscount._doc, 'Discount has been successfully created', 201);
 
     } catch (error) {
+        console.log('VVVVVV', error);
 
         if (error.code === 11000) {
-            handleError('This discount is already exists.', 400, res)
+            handleError(`This discount is already exists.`, 400, res)
             return
         }
 

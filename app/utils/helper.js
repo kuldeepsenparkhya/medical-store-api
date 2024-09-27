@@ -247,7 +247,7 @@ exports.generateInvoice = (invoiceData) => {
             .fontSize(12)
             .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left' })
             .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
-            .text(`$${item.price.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
+            .text(`$${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
             .text(`$${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
 
         y += 20; // Move down the Y position for the next row
@@ -263,9 +263,9 @@ exports.generateInvoice = (invoiceData) => {
     doc
         .fontSize(12)
         .text(`Subtotal: $${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
-        .text(`Shipping Charges: $${invoiceData.shipping_charge.toFixed(2)}`, 400, y + 40, { align: 'right' })
+        .text(`Shipping Charges: $${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
         .fontSize(16)
-        .text(`Grand Total: $${invoiceData.grandTotal.toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
+        .text(`Grand Total: $${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
 
     // Finalize the PDF and end the stream
     doc.end();

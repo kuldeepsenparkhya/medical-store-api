@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose
 
-const volletSchema = Schema({
+const userVolletSchema = Schema({
     user_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -12,12 +12,11 @@ const volletSchema = Schema({
         type: Number,
         default: 0
     },
-
-
-}, {
-    timestamps: true
-})
+},
+    {
+        timestamps: true
+    })
 
 
 // Create model
-module.exports = mongoose.model('Vollet', volletSchema);
+module.exports = mongoose.model('UserVollet', userVolletSchema);
