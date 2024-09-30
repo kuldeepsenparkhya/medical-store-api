@@ -27,7 +27,10 @@ exports.create = async (req, res) => {
         await Promise.all(products.map(async (item) => {
             if (!req.file) {
                 const getNeededPrescriptions = await Product.findOne({ _id: item.product_id, isRequirePrescription: true })
-                requirePrescription.push(getNeededPrescriptions?.title)
+             
+                if (getNeededPrescriptions) {
+                    requirePrescription.push(getNeededPrescriptions.title);
+                }
             }
 
             // else {
