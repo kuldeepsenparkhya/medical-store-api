@@ -53,7 +53,7 @@ exports.create = async (req, res) => {
         }));
 
         if (requirePrescription.length > 0) {
-            res.send({
+            res.status(400).send({
                 message: `Prescription upload is required for the following items: ${requirePrescription}. Please upload your prescription to proceed.`,
                 error: true,
             })
