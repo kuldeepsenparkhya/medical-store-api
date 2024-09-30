@@ -1,7 +1,8 @@
 const { handleError, handleResponse, getPagination } = require("../utils/helper");
 const { createDiscount } = require("./joiValidator/discountJoiSchema");
-const { Discount, ProductVariant } = require("../modals");
+const { Discount, ProductVariant, ComboProduct } = require("../modals");
 const { isValidObjectId } = require("mongoose");
+const path = require("path");
 
 exports.create = async (req, res) => {
     try {
@@ -12,20 +13,41 @@ exports.create = async (req, res) => {
             return;
         };
 
-        const data = { name, discount, discount_type, status, discount_offer_type }
-        const newDiscount = new Discount(data);
 
-        console.log('variants>>>>>', products);
-
-
-        if (products.length > 0) {
-            Promise.all(products.map(async (item) => {
-                const variants = await ProductVariant.find({ _id: item.variantId, productId: item.productId })
-                variants.map(async (val) => await ProductVariant.updateOne({ _id: val._id, productId: val.productId }, { discounted_id: newDiscount._id }, { new: true }))
-            }))
+        if (discount_offer_type === 'combo') {
+            if (!req.file) {
+                handleError('Combo discount image are missing', 400, res)
+                return
+            }
         }
 
+        const file = req?.file ? `${process.env.BASE_URL}/media/${path.basename(req.filePath)}` : ''
+
+        const data = { name, discount, discount_type, status, discount_offer_type, discount_img: file }
+
+        const newDiscount = new Discount(data);
+
+        // Save the discount first
         await newDiscount.save();
+
+        if (discount_offer_type === 'combo') {
+            await Promise.all(products.map(async (item) => {
+                const comboData = { discount_id: newDiscount._id, product_id: item.productId, product_variant_id: item.variantId, discount_img: file };
+                const existingComboProduct = await ComboProduct.findOne(comboData);
+                if (!existingComboProduct) {
+                    const newComboProduct = new ComboProduct(comboData);
+                    await newComboProduct.save();
+                }
+            }));
+        }
+        else {
+            if (products.length > 0) {
+                Promise.all(products.map(async (item) => {
+                    const variants = await ProductVariant.find({ _id: item.variantId, productId: item.productId })
+                    variants.map(async (val) => await ProductVariant.updateOne({ _id: val._id, productId: val.productId }, { discounted_id: newDiscount._id }, { new: true }))
+                }))
+            }
+        }
 
         handleResponse(res, newDiscount._doc, 'Discount has been successfully created', 201);
 
@@ -36,7 +58,6 @@ exports.create = async (req, res) => {
             handleError(`This discount is already exists.`, 400, res)
             return
         }
-
         handleError(error.message, 400, res)
     }
 };
@@ -92,9 +113,7 @@ exports.findOne = async (req, res) => {
 
 exports.handleDiscountStatus = async (req, res) => {
     try {
-
         const { id } = req.params;
-
         // Validate the ID
         if (!isValidObjectId(id)) {
             return handleError('Invalid discount ID format', 400, res);

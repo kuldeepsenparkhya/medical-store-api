@@ -11,6 +11,9 @@ const productOfferSchema = new Schema({
     type: Number,
     required: true
   },
+  discount_img: {
+    type: String,
+  },
   discount_type: {
     type: String,
     enum: ['perc', 'amount'],

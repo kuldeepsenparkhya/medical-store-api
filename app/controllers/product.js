@@ -1,5 +1,5 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
-const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory } = require("../modals");
+const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct } = require("../modals");
 
 const fs = require('fs')
 const path = require("path");
@@ -553,8 +553,8 @@ exports.getTopSellingProducts = async (req, res) => {
     }
 };
 
-
-exports.getAllTrashProducts = async (req, res) => {
+// /all/products
+exports.getAllProducts = async (req, res) => {
     try {
         const { q, page = 1, limit = 10, sort = 1, minPrice, maxPrice, categoryName, healthCategoryName } = req.query;
         const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -681,7 +681,6 @@ exports.getAllTrashProducts = async (req, res) => {
                     as: 'healthCategory'
                 }
             },
-
             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
@@ -691,27 +690,80 @@ exports.getAllTrashProducts = async (req, res) => {
 
         const products = await Product.aggregate(pipeline);
 
-        const discount = products.map((item) => {
-            item.variant.map(async (varient) => {
-                const discount = await Discount.findOne({ discounted_id: varient.discounted_id })
-            })
-        })
-
-
-        // Fetch discount details for each variant
+        // Fetch discounts for each variant
         const productsWithDiscounts = await Promise.all(products.map(async (product) => {
-            const variantsWithDiscounts = await Promise.all(product.variant.map(async (variant) => {
-                const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
-                return { ...variant, discount };
-            }));
+            const variantsWithDiscounts = product.variant && Array.isArray(product.variant)
+                ? await Promise.all(product.variant.map(async (variant) => {
+                    const discount = variant.discounted_id ? await Discount.findOne({ _id: variant.discounted_id }) : null;
+                    return { ...variant, discount };
+                }))
+                : [];
             return { ...product, variant: variantsWithDiscounts };
         }));
 
-        const getTrashProducts = productsWithDiscounts.filter((value) => value.isDeleted === false)
+        // Fetch combo products
+        // Fetch combo products with category details
+        const comboProducts = await ComboProduct.aggregate([
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'product_id',
+                    foreignField: '_id',
+                    as: 'productDetails'
+                }
+            },
+            { $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'productDetails.brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'productDetails.product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'media',
+                    localField: 'productDetails._id',
+                    foreignField: 'product_id',
+                    as: 'mediaFiles'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'variants', // Add this lookup to get variant details
+                    localField: 'product_variant_id',
+                    foreignField: '_id',
+                    as: 'productVariantDetails'
+                }
+            },
+            { $unwind: { path: '$productVariantDetails', preserveNullAndEmptyArrays: true } }, // Unwind the variant details
 
-        const totalCount = await Product.countDocuments(filterDeleted);
+            { $skip: skip },
+            { $limit: parseInt(limit, 10) }
+        ]);
 
-        const getPaginationResult = await getPagination(req.query, productsWithDiscounts, totalCount);
+        // Group combo products by discount_id
+        const groupedComboProducts = groupComboProductsByDiscountId(comboProducts);
+
+        // Combine results
+        const allProductsWithDiscounts = [...productsWithDiscounts, ...groupedComboProducts];
+
+        // Total count for pagination
+        const totalCount = await Product.countDocuments(filterDeleted) + await ComboProduct.countDocuments();
+
+        const getPaginationResult = await getPagination(req.query, allProductsWithDiscounts, totalCount);
+
 
         handleResponse(res, getPaginationResult, 200);
 
@@ -719,6 +771,66 @@ exports.getAllTrashProducts = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
+
+
+
+
+// Function to group combo products by discount_id and include necessary data
+function groupComboProductsByDiscountId(comboProducts) {
+    const grouped = {};
+
+    comboProducts.forEach(combo => {
+        const discountId = combo.discount_id;
+
+        // Initialize a new object for the discount_id if it doesn't exist
+        if (!grouped[discountId]) {
+            grouped[discountId] = {
+                discount_id: discountId,
+                products: [],
+            };
+        }
+
+        // Push the current combo product's details into the grouped object
+        grouped[discountId].products.push({
+            _id: combo._id,
+            product_id: {
+                _id: combo.productDetails._id,
+                title: combo.productDetails.title,
+                description: combo.productDetails.description,
+                sku: combo.productDetails.sku,
+                quantity: combo.productDetails.quantity,
+                product_category_id: combo.productDetails.product_category_id,
+                brand_id: combo.productDetails.brand_id,
+                mediaFiles: combo.mediaFiles,
+                // Add other necessary fields here
+            },
+            product_variant_id: {
+                _id: combo.productVariantDetails._id, // Full details now
+                productId: combo.productVariantDetails.productId,
+                discounted_id: combo.productVariantDetails.discounted_id,
+                size: combo.productVariantDetails.size,
+                color: combo.productVariantDetails.color,
+                price: combo.productVariantDetails.price,
+                quantity: combo.productVariantDetails.quantity,
+                // Add any additional fields needed for the variant
+            },
+            brand: combo.brand,
+            productCategory: combo.productCategory, // Include product category details
+            createdAt: combo.createdAt,
+            updatedAt: combo.updatedAt,
+        });
+    });
+
+    return Object.values(grouped);
+}
+
+
+
+
+
+
+
+
 
 
 exports.getMinimumDiscountedProducts = async (req, res) => {

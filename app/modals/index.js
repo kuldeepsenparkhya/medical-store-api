@@ -49,6 +49,7 @@ const db = {
 
   // Offer discount 
   Offer: require('./offer'),
+  ComboProduct: require('./comboProduct')
 
 };
 

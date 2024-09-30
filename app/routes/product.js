@@ -12,7 +12,7 @@ module.exports = app => {
     router.get('/products/minimum/discounted', products.getMinimumDiscountedProducts)
 
     router.get('/products', products.find)
-    router.get('/all/products', products.getAllTrashProducts)
+    router.get('/all/products', products.getAllProducts)
     router.get('/all/deleted/products', products.getAllDeletedProducts)
 
     router.get('/products/:id', products.findOne)
