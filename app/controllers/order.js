@@ -128,7 +128,6 @@ exports.create = async (req, res) => {
 
         // Order 
         const newData = await Promise.all(products.map(async (item, i) => {
-
             if (item?.discount_id !== null && item.discount_id === undefined) {
                 const discount = await Discount.findOne({ _id: item?.discount_id })
                 item.total = discount?.discount_type === 'perc' ? (item?.quantity * item.price) * (1 - discount?.discount / 100) : (item.quantity * item.price) - discount?.discount;

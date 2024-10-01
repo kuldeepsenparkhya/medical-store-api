@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 const bcrypt = require("bcrypt");
-const { User } = require('../modals');
+const { User, UserWallet } = require('../modals');
 const { loginUser, resetUserPassword, updateUserPassword, OTPVerify, socialLogin } = require('./joiValidator/userJoiSchema');
 const { handleError, createUUID, sendMailer, handleResponse } = require('../utils/helper');
 const { JWT_EXPIRESIN, JWT_SECREATE, FRONTEND_URL } = require('../config/config');
@@ -66,8 +66,10 @@ exports.socialLogin = async (req, res) => {
             const data = { email, socialID, socialType, name, role: 'user' }
 
             const newUser = new User(data);
+            const userWallet = new UserWallet({ user_id: newUser._id, coin: 0 })
             await newUser.save();
-
+            await userWallet.save();
+            
             const token = jwt.sign({ _id: newUser._id, email: newUser.email, role: 'user', }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
 
             res.status(200).send({

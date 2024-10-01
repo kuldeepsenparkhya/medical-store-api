@@ -280,7 +280,10 @@ exports.blockedUser = async (req, res) => {
 exports.me = async (req, res) => {
     const user = await User.findOne({ _id: req.user._id })
     const wallet = await UserWallet.findOne({ user_id: req.user._id });
-    user.WalletBalance = wallet ? wallet.coins : 0; // Set to 0 if no wallet found
+    console.log('wallet>>>>>>', wallet);
+
+    user.WalletBalance = wallet ? wallet?.coins : 0; // Set to 0 if no wallet found
+
     const userProfile = user.toObject(); // or use user._doc
     userProfile.walletBalance = user.WalletBalance;
     user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, userProfile, 'Retrieve your profile', 200)
