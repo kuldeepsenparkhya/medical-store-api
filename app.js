@@ -3,7 +3,6 @@ const express = require('express');
 
 const cron = require("node-cron");
 
-
 const passport = require('passport');
 const session = require('express-session');
 const path = require('path');
@@ -65,7 +64,6 @@ require('./app/routes/reminder')(app);
 require('./app/routes/offer')(app);
 
 
-
 app.use(authJWT);
 
 require('./app/routes/document')(app);
@@ -81,8 +79,6 @@ require('./app/routes/inventory')(app);
 require('./app/routes/variant')(app);
 require('./app/routes/coin')(app);
 require('./app/routes/vollet')(app);
-
-
 
 
 // Creating a cron job which runs every hour

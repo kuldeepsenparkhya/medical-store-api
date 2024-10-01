@@ -768,6 +768,8 @@ exports.getAllProducts = async (req, res) => {
         handleResponse(res, getPaginationResult, 200);
 
     } catch (error) {
+        console.log('VVVVVVVVVVVVVVVVV', error);
+
         handleError(error.message, 400, res);
     }
 };

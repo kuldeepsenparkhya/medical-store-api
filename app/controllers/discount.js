@@ -30,10 +30,12 @@ exports.create = async (req, res) => {
             await Promise.all(products.map(async (item) => {
                 const comboData = { discount_id: newDiscount._id, product_id: item.productId, product_variant_id: item.variantId, discount_img: file };
                 const existingComboProduct = await ComboProduct.findOne(comboData);
+               
                 if (!existingComboProduct) {
                     const newComboProduct = new ComboProduct(comboData);
                     await newComboProduct.save();
                 }
+                
             }));
         }
         else {
