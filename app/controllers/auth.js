@@ -66,11 +66,12 @@ exports.socialLogin = async (req, res) => {
             const data = { email, socialID, socialType, name, role: 'user' }
 
             const newUser = new User(data);
-            const userWallet = new UserWallet({ user_id: newUser._id, coin: 0 })
             await newUser.save();
-            await userWallet.save();
             
             const token = jwt.sign({ _id: newUser._id, email: newUser.email, role: 'user', }, JWT_SECREATE, { expiresIn: JWT_EXPIRESIN })
+            
+            const userWallet = new UserWallet({ user_id: newUser._id, coin: 0 })
+            await userWallet.save();
 
             res.status(200).send({
                 token: token,
