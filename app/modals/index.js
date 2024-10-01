@@ -8,7 +8,6 @@ if (!DB_URI) {
 }
 
 mongoose.connect(DB_URI, {
-  useNewUrlParser: true,
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000, // Adjust timeout as needed
 })

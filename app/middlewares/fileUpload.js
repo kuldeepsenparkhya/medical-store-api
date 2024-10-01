@@ -30,9 +30,7 @@ const sharp = require("sharp");
 
 exports.fileUploader = (req, res, next) => {
   const BASE_PATH = path.join(__dirname, "../upload");
-
   const storage = multer.memoryStorage(); // Store files in memory for processing
-
   const fileFilter = (req, file, cb) => {
     // Allow all file types for uploading
     cb(null, true);
@@ -48,14 +46,9 @@ exports.fileUploader = (req, res, next) => {
       return res.status(400).send(err);
     }
 
-    const file = req.file;
+    const file = req?.file;
 
-    // Check if file is undefined
-    // if (!file) {
-    //   return res.status(400).send({ error: true, message: "No file uploaded." });
-    // }
-
-    const originalName = file.originalname;
+    const originalName = file?.originalname;
     const fileExtension = path.extname(originalName).toLowerCase();
     const timestamp = Date.now();
 

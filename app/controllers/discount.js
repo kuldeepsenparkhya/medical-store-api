@@ -13,7 +13,6 @@ exports.create = async (req, res) => {
             return;
         };
 
-
         if (discount_offer_type === 'combo') {
             if (!req.file) {
                 handleError('Combo discount image are missing', 400, res)
@@ -22,14 +21,11 @@ exports.create = async (req, res) => {
         }
 
         const file = req?.file ? `${process.env.BASE_URL}/media/${path.basename(req.filePath)}` : ''
-
         const data = { name, discount, discount_type, status, discount_offer_type, discount_img: file }
 
         const newDiscount = new Discount(data);
-
         // Save the discount first
         await newDiscount.save();
-
         if (discount_offer_type === 'combo') {
             await Promise.all(products.map(async (item) => {
                 const comboData = { discount_id: newDiscount._id, product_id: item.productId, product_variant_id: item.variantId, discount_img: file };
@@ -52,7 +48,7 @@ exports.create = async (req, res) => {
         handleResponse(res, newDiscount._doc, 'Discount has been successfully created', 201);
 
     } catch (error) {
-        console.log('VVVVVV', error);
+        console.error('Error creating discount:', error);
 
         if (error.code === 11000) {
             handleError(`This discount is already exists.`, 400, res)
