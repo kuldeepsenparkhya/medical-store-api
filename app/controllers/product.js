@@ -796,14 +796,14 @@ function groupComboProductsByDiscountId(comboProducts) {
         grouped[discountId].products.push({
             _id: combo._id,
             product_id: {
-                _id: combo.productDetails._id,
-                title: combo.productDetails.title,
-                description: combo.productDetails.description,
-                sku: combo.productDetails.sku,
-                quantity: combo.productDetails.quantity,
-                product_category_id: combo.productDetails.product_category_id,
-                brand_id: combo.productDetails.brand_id,
-                mediaFiles: combo.mediaFiles,
+                _id: combo?.productDetails?._id,
+                title: combo?.productDetails?.title,
+                description: combo?.productDetails?.description,
+                sku: combo?.productDetails?.sku,
+                quantity: combo?.productDetails?.quantity,
+                product_category_id: combo?.productDetails?.product_category_id,
+                brand_id: combo?.productDetails?.brand_id,
+                mediaFiles: combo?.mediaFiles,
                 // Add other necessary fields here
             },
             product_variant_id: {
