@@ -807,19 +807,19 @@ function groupComboProductsByDiscountId(comboProducts) {
                 // Add other necessary fields here
             },
             product_variant_id: {
-                _id: combo.productVariantDetails._id, // Full details now
-                productId: combo.productVariantDetails.productId,
-                discounted_id: combo.productVariantDetails.discounted_id,
-                size: combo.productVariantDetails.size,
-                color: combo.productVariantDetails.color,
-                price: combo.productVariantDetails.price,
-                quantity: combo.productVariantDetails.quantity,
+                _id: combo?.productVariantDetails?._id, // Full details now
+                productId: combo?.productVariantDetails?.productId,
+                discounted_id: combo?.productVariantDetails?.discounted_id,
+                size: combo?.productVariantDetails?.size,
+                color: combo?.productVariantDetails?.color,
+                price: combo?.productVariantDetails?.price,
+                quantity: combo?.productVariantDetails?.quantity,
                 // Add any additional fields needed for the variant
             },
-            brand: combo.brand,
-            productCategory: combo.productCategory, // Include product category details
-            createdAt: combo.createdAt,
-            updatedAt: combo.updatedAt,
+            brand: combo?.brand,
+            productCategory: combo?.productCategory, // Include product category details
+            createdAt: combo?.createdAt,
+            updatedAt: combo?.updatedAt,
         });
     });
 
