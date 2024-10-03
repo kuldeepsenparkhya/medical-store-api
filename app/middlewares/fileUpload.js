@@ -48,6 +48,10 @@ exports.fileUploader = (req, res, next) => {
 
     const file = req?.file;
 
+    if (!file) {
+      return next(); // No file uploaded, move to the next middleware
+    }
+
     const originalName = file?.originalname;
     const fileExtension = path.extname(originalName).toLowerCase();
     const timestamp = Date.now();
