@@ -269,7 +269,6 @@ exports.create = async (req, res) => {
     }
 };
 
-
 exports.findAllOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
@@ -364,7 +363,6 @@ exports.findAllOrders = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
 
 exports.findOrdersByUserId = async (req, res) => {
     try {
@@ -545,14 +543,8 @@ exports.cancelledOrder = async (req, res) => {
         await Promise.all(order?.products?.map(async (product) => {
             const inventory = await Inventory.findOne({ product_id: product.product_id, product_variant_id: product.product_variant_id });
 
-            await Inventory.updateOne({ product_id: product.product_id, product_variant_id: product.product_variant_id },
-                {
-                    sale_variant_quantity
-                        : inventory.sale_variant_quantity - product.quantity
-                }, { new: true })
+            await Inventory.updateOne({ product_id: product.product_id, product_variant_id: product.product_variant_id }, { sale_variant_quantity: inventory.sale_variant_quantity - product.quantity }, { new: true })
         }))
-
-
 
         if (!order) {
             handleError('Invailid order ID.', 400, res)
