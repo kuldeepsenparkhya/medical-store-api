@@ -258,7 +258,6 @@ exports.create = async (req, res) => {
 };
 
 
-
 exports.findAllOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
@@ -353,7 +352,6 @@ exports.findAllOrders = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
 
 
 exports.findOrdersByUserId = async (req, res) => {

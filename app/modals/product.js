@@ -15,10 +15,6 @@ const productSchema = Schema({
     required: true,
     unique: true
   },
-  quantity: {
-    type: Number,
-    required: true,
-  },
   consume_type: {
     type: String,
     required: true,

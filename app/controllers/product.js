@@ -13,7 +13,6 @@ exports.create = async (req, res) => {
             title,
             description,
             sku,
-            quantity,
             consume_type,
             return_policy,
             product_category_id,
@@ -39,7 +38,6 @@ exports.create = async (req, res) => {
             title,
             description,
             sku,
-            quantity,
             consume_type,
             return_policy,
             product_category_id: validProductCategoryId,
@@ -824,13 +822,6 @@ function groupComboProductsByDiscountId(comboProducts) {
 
 
 
-
-
-
-
-
-
-
 exports.getMinimumDiscountedProducts = async (req, res) => {
     try {
         const { q, page = 1, limit = 10, sort = 1, categoryName, healthCategoryName, mindiscount = 0 } = req.query;
@@ -1141,8 +1132,10 @@ exports.getAllDeletedProducts = async (req, res) => {
 
 exports.createBulkProducts = async (req, res) => {
     try {
+        console.log('v<<', req.file);
+
         if (!req.file) {
-            return res.status(400).send('No file uploaded.');
+            return res.status(400).send({ message: 'No file uploaded.', error: true });
         }
 
         const csvFilePath = req.file.path;
@@ -1155,55 +1148,53 @@ exports.createBulkProducts = async (req, res) => {
                 try {
                     // Map to accumulate data
                     const productMap = new Map();
-
                     // Accumulate product and variant data
-                    products.forEach(item => {
-                        if (!productMap.has(item.title)) {
-                            productMap.set(item.title, {
+
+                    products.forEach(async item => {
+                        if (!productMap.has(item?.title)) {
+                            productMap.set(item?.title, {
                                 productData: {
-                                    title: item.title,
-                                    sku: item.sku,
-                                    description: item.description,
-                                    quantity: item.quantity,
-                                    consume_type: item.consume_type,
-                                    return_policy: item.return_policy,
-                                    expiry_date: item.expiry_date,
-                                    manufacturing_date: item.manufacturing_date,
-                                    sideEffects: item.sideEffects,
-                                    brand_name: item.brand_name,
-                                    product_category: item.product_category,
+                                    title: item?.title,
+                                    sku: item?.sku,
+                                    description: item?.description,
+                                    consume_type: item?.consume_type,
+                                    return_policy: item?.return_policy,
+                                    expiry_date: item?.expiry_date,
+                                    manufacturing_date: item?.manufacturing_date,
+                                    sideEffects: item?.sideEffects,
+                                    brand_name: item?.brand_name,
+                                    product_category: item?.product_category,
+                                    isRequirePrescription: item?.isRequirePrescription
                                 },
                                 variants: [],
-                                media: item.product_image ? [{ url: item.product_image, mimetype: 'image/jpeg' }] : [],
-                                brochures: item.product_brochure ? [{ url: item.product_brochure, mimetype: 'application/pdf' }] : [],
+                                media: item.product_image ? [{ url: item?.product_image, mimetype: 'image/jpeg' }] : [],
+                                brochures: item.product_brochure ? [{ url: item?.product_brochure, mimetype: 'application/pdf' }] : [],
                             });
                         }
 
                         const productEntry = productMap.get(item.title);
 
-                        if (item.v1_size && item.v1_color) {
-                            productEntry.variants.push({
-                                size: item?.v1_size,
-                                color: item?.v1_color,
-                                price: item?.v1_price,
-                                quantity: item?.v1_quantity
-                            });
-                        }
-                        if (item?.v2_size && item?.v2_color) {
-                            productEntry.variants.push({
-                                size: item?.v2_size,
-                                color: item?.v2_color,
-                                price: item?.v2_price,
-                                quantity: item?.v2_quantity
-                            });
-                        }
-                        if (item?.v3_size && item?.v3_color) {
-                            productEntry.variants.push({
-                                size: item?.v3_size,
-                                color: item?.v3_color,
-                                price: item?.v3_price,
-                                quantity: item?.v3_quantity
-                            });
+                        // Dynamically find variant fields
+                        let variantIndex = 1; // Start with the first variant
+                        while (item[`v${variantIndex}_size`]) {
+                            // Construct the discount name key dynamically
+                            const discountNameKey = `v${variantIndex}_discount_name`;
+                            const discountName = item[discountNameKey]; // Access the discount name for the current variant
+                            const discount = await Discount.findOne({ name: discountName });
+
+                            const variant = {
+                                size: item[`v${variantIndex}_size`],
+                                color: item[`v${variantIndex}_color`],
+                                price: item[`v${variantIndex}_price`],
+                                quantity: item[`v${variantIndex}_quantity`],
+                                discounted_id: discount ? discount._id : null, // Handle the case where no discount is found
+                            };
+
+                            // Only add the variant if size and color exist
+                            if (variant.size) {
+                                productEntry.variants.push(variant);
+                            }
+                            variantIndex++;
                         }
                     });
 
@@ -1265,9 +1256,8 @@ exports.createBulkProducts = async (req, res) => {
 
                     // Wait for all operations to complete
                     await Promise.all(operations);
-
                     // Respond with success
-                    res.status(200).send('File processed and data inserted successfully.');
+                    res.status(200).send({ message: 'File processed and data inserted successfully.', error: false });
 
                 } catch (error) {
                     // Handle errors
@@ -1281,6 +1271,6 @@ exports.createBulkProducts = async (req, res) => {
 
     } catch (error) {
         console.error('Error occurred:', error);
-        res.status(500).send('Error occurred while processing the CSV file');
+        res.status(500).send({ message: 'Error occurred while processing the CSV file', error: true });
     }
 };

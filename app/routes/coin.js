@@ -7,6 +7,5 @@ module.exports = app => {
     router.get('/loyalities', authJWT, adminAccess,  coins.getCoin)
     router.patch('/loyalities/:id', authJWT, adminAccess, coins.updateCoinConversion)
 
-
     app.use('/api', router);
 }

@@ -1,14 +1,14 @@
 var router = require('express').Router();
 const { products } = require('../controllers');
 const { adminAccess, authJWT } = require('../middlewares/auth');
-const { filesUploader, fileUploader } = require('../middlewares/fileUpload');
+const { filesUploader, bulkFileUploadProduct } = require('../middlewares/fileUpload');
 
 module.exports = app => {
 
     router.post('/products', authJWT, adminAccess, filesUploader, products.create)
 
-    router.post('/products/bulk/insert', authJWT, adminAccess, fileUploader, products.createBulkProducts)
-    
+    router.post('/products/bulk/insert', authJWT, adminAccess, bulkFileUploadProduct, products.createBulkProducts)
+
     router.get('/products/minimum/discounted', products.getMinimumDiscountedProducts)
 
     router.get('/products', products.find)

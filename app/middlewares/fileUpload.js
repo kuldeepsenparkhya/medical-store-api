@@ -3,30 +3,30 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const sharp = require("sharp");
 
-// exports.fileUploader = (req, res, next) => {
-//   const BASE_PATH = path.join(__dirname, "../upload");
-//   const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//       cb(null, BASE_PATH);
-//     },
-//     filename: function (req, file, cb) {
-//       cb(null, Date.now() + file.originalname);
-//     },
-//   });
+exports.bulkFileUploadProduct = (req, res, next) => {
+  const BASE_PATH = path.join(__dirname, "../upload");
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, BASE_PATH);
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + file.originalname);
+    },
+  });
 
-//   const fileFilter = (req, file, cb) => {
-//     {
-//       cb(null, true);
-//     }
-//   };
+  const fileFilter = (req, file, cb) => {
+    {
+      cb(null, true);
+    }
+  };
 
-//   const upload = multer({
-//     storage: storage,
-//     fileFilter: fileFilter,
-//   });
+  const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+  });
 
-//   upload.single("files")(req, res, next);
-// };
+  upload.single("files")(req, res, next);
+};
 
 exports.fileUploader = (req, res, next) => {
   const BASE_PATH = path.join(__dirname, "../upload");
