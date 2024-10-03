@@ -703,73 +703,69 @@ exports.getAllProducts = async (req, res) => {
 
         // Fetch combo products
         // Fetch combo products with category details
-        const comboProducts = await ComboProduct.aggregate([
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'product_id',
-                    foreignField: '_id',
-                    as: 'productDetails'
-                }
-            },
-            { $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'brands',
-                    localField: 'productDetails.brand_id',
-                    foreignField: '_id',
-                    as: 'brand'
-                }
-            },
-            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'productcategories',
-                    localField: 'productDetails.product_category_id',
-                    foreignField: '_id',
-                    as: 'productCategory'
-                }
-            },
-            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'media',
-                    localField: 'productDetails._id',
-                    foreignField: 'product_id',
-                    as: 'mediaFiles'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'variants', // Add this lookup to get variant details
-                    localField: 'product_variant_id',
-                    foreignField: '_id',
-                    as: 'productVariantDetails'
-                }
-            },
-            { $unwind: { path: '$productVariantDetails', preserveNullAndEmptyArrays: true } }, // Unwind the variant details
+        // const comboProducts = await ComboProduct.aggregate([
+        //     {
+        //         $lookup: {
+        //             from: 'products',
+        //             localField: 'product_id',
+        //             foreignField: '_id',
+        //             as: 'productDetails'
+        //         }
+        //     },
+        //     { $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true } },
+        //     {
+        //         $lookup: {
+        //             from: 'brands',
+        //             localField: 'productDetails.brand_id',
+        //             foreignField: '_id',
+        //             as: 'brand'
+        //         }
+        //     },
+        //     { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+        //     {
+        //         $lookup: {
+        //             from: 'productcategories',
+        //             localField: 'productDetails.product_category_id',
+        //             foreignField: '_id',
+        //             as: 'productCategory'
+        //         }
+        //     },
+        //     { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+        //     {
+        //         $lookup: {
+        //             from: 'media',
+        //             localField: 'productDetails._id',
+        //             foreignField: 'product_id',
+        //             as: 'mediaFiles'
+        //         }
+        //     },
+        //     {
+        //         $lookup: {
+        //             from: 'variants', // Add this lookup to get variant details
+        //             localField: 'product_variant_id',
+        //             foreignField: '_id',
+        //             as: 'productVariantDetails'
+        //         }
+        //     },
+        //     { $unwind: { path: '$productVariantDetails', preserveNullAndEmptyArrays: true } }, // Unwind the variant details
 
-            { $skip: skip },
-            { $limit: parseInt(limit, 10) }
-        ]);
+        //     { $skip: skip },
+        //     { $limit: parseInt(limit, 10) }
+        // ]);
 
         // Group combo products by discount_id
-        const groupedComboProducts = groupComboProductsByDiscountId(comboProducts);
+        // const groupedComboProducts = groupComboProductsByDiscountId(comboProducts);
 
         // Combine results
-        const allProductsWithDiscounts = [...productsWithDiscounts, ...groupedComboProducts];
-
+        const allProductsWithDiscounts = [...productsWithDiscounts,];
         // Total count for pagination
-        const totalCount = await Product.countDocuments(filterDeleted) + await ComboProduct.countDocuments();
-
+        const totalCount = await Product.countDocuments(filterDeleted);
         const getPaginationResult = await getPagination(req.query, allProductsWithDiscounts, totalCount);
-
 
         handleResponse(res, getPaginationResult, 200);
 
     } catch (error) {
         console.log('VVVVVVVVVVVVVVVVV', error);
-
         handleError(error.message, 400, res);
     }
 };
