@@ -42,6 +42,7 @@ const db = {
 
   // Loyality program
   UserWallet: require('./userVollet'), //For user vollet coins
+  
   Coin: require('./coin'),
   // LoyaltyRange: require('./loyaltyRange'),
 

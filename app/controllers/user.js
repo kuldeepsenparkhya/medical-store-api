@@ -195,7 +195,6 @@ exports.updateProfile = async (req, res) => {
 
         const getUser = await User.findOne({ _id: req.user._id })
 
-
         const file = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : getUser.profile
 
         const data = { name, email, mobile, profile: file }

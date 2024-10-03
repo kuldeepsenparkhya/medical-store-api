@@ -147,8 +147,6 @@ exports.create = async (req, res) => {
 
         console.log('user_wallet_id<<<<<<', user_wallet_id);
 
-        const validParentCategoryId = (user_wallet_id && user_wallet_id !== '') ? user_wallet_id : null;
-
         const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url }
         // Add user_wallet_id only if it is valid and not a string "null"
         if (user_wallet_id && user_wallet_id !== 'null' && user_wallet_id !== '') {
@@ -156,11 +154,25 @@ exports.create = async (req, res) => {
         }
 
         const newOrder = new Order(data);
+        let assignedCoins = 0
+
+        if (newOrder.total >= 500 && newOrder.total < 700) {
+            assignedCoins = 15
+        } else if (newOrder.total >= 700 && newOrder.total < 1500) {
+            assignedCoins = 25
+        } else if (newOrder.total >= 1501) {
+            assignedCoins = 25
+        } else {
+            assignedCoins = 5
+        }
+
+        const getCoins = await UserWallet.findOne({ user_id: req.user._id })
+
+        await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true })
 
         await newOrder.save();
 
         const orderItems = await Promise.all(products.map(async (item) => {
-
             const product = await Product.findOne({ _id: item.product_id });
             const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id });
 
