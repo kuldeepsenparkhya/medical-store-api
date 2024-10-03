@@ -19,10 +19,8 @@ exports.create = async (req, res) => {
         };
 
         let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
-
         const requirePrescription = []
-        const comboDiscountProducts = []
-
+        // const comboDiscountProducts = []
         //-------------------------------- Check prescription require products --------------------------------
         await Promise.all(products.map(async (item) => {
             if (!req.file) {
@@ -59,22 +57,23 @@ exports.create = async (req, res) => {
 
         //-------------------------------- Handle user wallet coins and apply or not --------------------------------
         let getCoinAmountValue = 0
-        if (user_wallet_id !== null & user_wallet_id === undefined) {
+        if (user_wallet_id && user_wallet_id !== 'null') { // Check for null and string "null"
             const userWallet = await UserWallet.findOne({ _id: user_wallet_id })
+
             if (!userWallet) {
                 handleError('Invalid user_wallet  ID', 400, res);
                 return;
             }
-
             const getCoin = await Coin.findOne({})
+
             const getOneCoinValue = getCoin.coins_amount / getCoin.coins
             getCoinAmountValue = userWallet.coins / getOneCoinValue
             await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true })
         }
 
         // const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
-
         // Check inventory availability
+
         const outOfStockVariants = [];
         let dueQuantity
 
@@ -146,7 +145,15 @@ exports.create = async (req, res) => {
         // Subtract coin amount value
         grandTotal -= (getCoinAmountValue);
 
-        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, user_wallet_id, prescription_url: prescription_url }
+        console.log('user_wallet_id<<<<<<', user_wallet_id);
+
+        const validParentCategoryId = (user_wallet_id && user_wallet_id !== '') ? user_wallet_id : null;
+
+        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url }
+        // Add user_wallet_id only if it is valid and not a string "null"
+        if (user_wallet_id && user_wallet_id !== 'null' && user_wallet_id !== '') {
+            data.user_wallet_id = user_wallet_id;
+        }
 
         const newOrder = new Order(data);
 

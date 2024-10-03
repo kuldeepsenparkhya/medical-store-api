@@ -69,7 +69,11 @@ const orderSchema = Schema({
     },
     user_wallet_id: {
         type: mongoose.Schema.Types.ObjectId,
+        ref: 'UserVollet',
+        default: null,
+        required: false,
     },
+
     prescription_url: {
         type: String,
     },
