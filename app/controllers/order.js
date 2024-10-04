@@ -57,6 +57,7 @@ exports.create = async (req, res) => {
 
         //-------------------------------- Handle user wallet coins and apply or not --------------------------------
         let getCoinAmountValue = 0
+        let loyalityCoins = 0
         if (user_wallet_id && user_wallet_id !== 'null') { // Check for null and string "null"
             const userWallet = await UserWallet.findOne({ _id: user_wallet_id })
 
@@ -65,6 +66,7 @@ exports.create = async (req, res) => {
                 return;
             }
             const getCoin = await Coin.findOne({})
+            loyalityCoins = userWallet.coins
 
             const getOneCoinValue = getCoin.coins_amount / getCoin.coins
             getCoinAmountValue = userWallet.coins / getOneCoinValue
@@ -145,15 +147,26 @@ exports.create = async (req, res) => {
         // Subtract coin amount value
         grandTotal -= (getCoinAmountValue);
 
-        console.log('user_wallet_id<<<<<<', user_wallet_id);
+        const data = {
+            products: newData,
+            subTotal,
+            user_id: user._id,
+            address_id,
+            shippingCost: shipping_charge,
 
-        const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url }
+            total: grandTotal,
+            order_type,
+            prescription_url: prescription_url,
+            loyality_coins: loyalityCoins
+        }
         // Add user_wallet_id only if it is valid and not a string "null"
         if (user_wallet_id && user_wallet_id !== 'null' && user_wallet_id !== '') {
             data.user_wallet_id = user_wallet_id;
         }
 
+
         const newOrder = new Order(data);
+
         let assignedCoins = 0
 
         if (newOrder.total >= 500 && newOrder.total < 700) {
@@ -705,10 +718,7 @@ exports.findAllUserOrders = async (req, res) => {
         }
 
         // Fetch orders with pagination and date range filter
-        const orders = await Order.find({
-            user_id: req.user._id,
-            // createdAt: { $gte: startDate }
-        })
+        const orders = await Order.find({ user_id: req.user._id, })
             .skip((pageNumber - 1) * pageSize)
             .limit(pageSize)
             .lean();

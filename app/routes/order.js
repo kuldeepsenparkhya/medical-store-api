@@ -27,13 +27,8 @@ module.exports = app => {
     router.get('/payment/:paymentId', orders.payment);
     router.get('/payments', orders.getAllPayments);
 
-
     router.get('/sales/report', orders.salesReport);
-
     router.get('/loyality/report/history', orders.getCoinsHistory);
-
-
-
 
     app.use('/api', router);
 };

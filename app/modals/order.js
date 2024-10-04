@@ -73,7 +73,7 @@ const orderSchema = Schema({
         default: null,
         required: false,
     },
-    user_wallet_coin: {
+    loyality_coins: {
         type: Number
     },
     prescription_url: {

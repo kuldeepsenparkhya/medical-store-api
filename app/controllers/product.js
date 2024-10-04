@@ -334,11 +334,8 @@ exports.update = async (req, res) => {
         const { title, description, consume_type, return_policy, product_category_id, health_category_id,
             brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants, remove_variant, remove_media, remove_brochure } = req?.body;
 
-
-
         const validProductCategoryId = product_category_id
         const validHealthCategoryId = health_category_id
-
 
         let parsedVariants = [];
 
@@ -761,7 +758,6 @@ function groupComboProductsByDiscountId(comboProducts) {
 
     return Object.values(grouped);
 }
-
 
 
 exports.getMinimumDiscountedProducts = async (req, res) => {
