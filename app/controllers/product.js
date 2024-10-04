@@ -424,22 +424,22 @@ exports.update = async (req, res) => {
             await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
         }
 
-        const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
-
-        if (!brochure) {
-            handleError('Invalid brochure ID', 400, res)
-            return
+        if (remove_brochure) {
+            const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
+            if (!brochure) {
+                handleError('Invalid brochure ID', 400, res)
+                return
+            }
+            const fileName = path.basename(brochure?.url);
+            const filePath = path.join(BASE_PATH, fileName);
+            try {
+                await fs.access(filePath);
+                await fs.unlink(path.join(BASE_PATH, fileName));
+            } catch (error) {
+                console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
+            }
+            await Brochure.deleteOne({ _id: brochure._id, product_id: product._id })
         }
-
-        const fileName = path.basename(brochure?.url);
-        const filePath = path.join(BASE_PATH, fileName);
-        try {
-            await fs.access(filePath);
-            await fs.unlink(path.join(BASE_PATH, fileName));
-        } catch (error) {
-            console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
-        }
-        const x = await Brochure.deleteOne({ _id: brochure._id, product_id: product._id })
 
         await Product.updateOne({ _id: id }, productData, { new: true });
 
