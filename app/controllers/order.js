@@ -966,9 +966,8 @@ exports.salesReport = async (req, res) => {
 exports.getCoinsHistory = async (req, res) => {
     try {
         const orders = await Order.find({ user_id: req.user.id })
-
+        console.log('orders<<<<<<', orders);
         handleResponse(res, orders, 'Retrieve loyality program history', 200)
-
     } catch (error) {
         console.log('Error>>>>>>>', error);
         handleError(error.message, 400, res);

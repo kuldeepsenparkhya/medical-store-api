@@ -73,7 +73,9 @@ const orderSchema = Schema({
         default: null,
         required: false,
     },
-
+    user_wallet_coin: {
+        type: Number
+    },
     prescription_url: {
         type: String,
     },

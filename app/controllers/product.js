@@ -354,8 +354,12 @@ exports.update = async (req, res) => {
                 discounted_id: variant.discounted_id,
                 quantity: variant.quantity
             };
-
+            // Check if the inventory exists
             const inventory = await Inventory.findOne({ product_id: product._id, product_variant_id: variant.id });
+            
+            if (!inventory) {
+                return handleError(`Inventory not found for product variant ${variant.id}`, 404, res); // Handle missing inventory
+            }
 
             await Inventory.updateOne({ product_id: inventory.product_id, product_variant_id: inventory.product_variant_id }, { total_variant_quantity: variant.quantity }, { new: true })
 
@@ -446,7 +450,6 @@ exports.update = async (req, res) => {
         res.status(200).send({ message: "Product has been successfully update.", error: false })
     } catch (error) {
         console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error);
-
         handleError(error.message, 400, res)
     };
 };
