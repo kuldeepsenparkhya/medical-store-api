@@ -26,6 +26,7 @@ exports.create = async (req, res) => {
         const newDiscount = new Discount(data);
         // Save the discount first
         await newDiscount.save();
+
         if (discount_offer_type === 'combo') {
             await Promise.all(products.map(async (item) => {
                 const comboData = { discount_id: newDiscount._id, product_id: item.productId, product_variant_id: item.variantId, discount_img: file };
@@ -35,7 +36,6 @@ exports.create = async (req, res) => {
                     const newComboProduct = new ComboProduct(comboData);
                     await newComboProduct.save();
                 }
-                
             }));
         }
         else {

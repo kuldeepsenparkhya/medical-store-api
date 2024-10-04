@@ -44,8 +44,8 @@ exports.updateCoinConversion = async (req, res) => {
 
 exports.getCoin = async (req, res) => {
     try {
-        const getCoin = await Coin.findOne({})
-        handleResponse(res, getCoin._doc, 'Coin retreive successfully.', 200)
+        const getCoin = await Coin.findOne({}).select({ coins: 1, coins_amount: 1 });
+        handleResponse(res, getCoin._doc, 'Coins are retreive successfully.', 200)
     } catch (error) {
         handleError(error, 400, res);
     }

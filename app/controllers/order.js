@@ -961,3 +961,16 @@ exports.salesReport = async (req, res) => {
         return res.status(500).send({ message: 'Internal server error' });
     }
 };
+
+
+exports.getCoinsHistory = async (req, res) => {
+    try {
+        const orders = await Order.find({ user_id: req.user.id })
+
+        handleResponse(res, orders, 'Retrieve loyality program history', 200)
+
+    } catch (error) {
+        console.log('Error>>>>>>>', error);
+        handleError(error.message, 400, res);
+    }
+}

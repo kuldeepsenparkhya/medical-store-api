@@ -277,13 +277,35 @@ exports.blockedUser = async (req, res) => {
 
 // Me get own profile
 exports.me = async (req, res) => {
-    const user = await User.findOne({ _id: req.user._id })
-    const wallet = await UserWallet.findOne({ user_id: req.user._id });
-    console.log('wallet>>>>>>', wallet);
+    try {
+        // Check if user is authenticated
+        if (!req.user || !req.user._id) {
+            return handleError('Unauthorized user', 401, res);
+        }
 
-    user.WalletBalance = wallet ? wallet?.coins : 0; // Set to 0 if no wallet found
+        // Fetch user and wallet information in parallel
+        const [user, wallet] = await Promise.all([
+            User.findOne({ _id: req.user._id }).exec(),
+            UserWallet.findOne({ user_id: req.user._id }).exec(),
+        ]);
 
-    const userProfile = user.toObject(); // or use user._doc
-    userProfile.walletBalance = user.WalletBalance;
-    user === null ? handleError('Unauthorized user', 400, res) : handleResponse(res, userProfile, 'Retrieve your profile', 200)
-}
+        // Handle case where user is not found
+        if (!user) {
+            return handleError('User not found', 404, res);
+        }
+
+        // Set wallet balance
+        user.WalletBalance = wallet ? wallet.coins : 0;
+
+        // Prepare user profile response
+        const userProfile = { ...user.toObject(), walletBalance: user.WalletBalance };
+
+        // Return the response
+        handleResponse(res, userProfile, 'Retrieve your profile', 200);
+
+    } catch (error) {
+        // Handle unexpected errors
+        console.error('Error retrieving user profile:', error); // Logging error for debugging
+        handleError('Internal server error', 500, res);
+    }
+};

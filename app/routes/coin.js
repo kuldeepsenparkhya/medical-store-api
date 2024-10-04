@@ -4,7 +4,7 @@ const { adminAccess, authJWT } = require('../middlewares/auth');
 
 module.exports = app => {
     router.post('/loyalities', authJWT, adminAccess, coins.addCoins)
-    router.get('/loyalities', authJWT, adminAccess,  coins.getCoin)
+    router.get('/loyalities', authJWT, coins.getCoin)
     router.patch('/loyalities/:id', authJWT, adminAccess, coins.updateCoinConversion)
 
     app.use('/api', router);

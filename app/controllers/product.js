@@ -331,8 +331,10 @@ exports.update = async (req, res) => {
             return
         }
 
-        const { title, description, quantity, consume_type, return_policy, product_category_id, health_category_id,
+        const { title, description, consume_type, return_policy, product_category_id, health_category_id,
             brand_id, expiry_date, manufacturing_date, inStock, sideEffects, variants, remove_variant, remove_media, remove_brochure } = req?.body;
+
+
 
         const validProductCategoryId = product_category_id
         const validHealthCategoryId = health_category_id
@@ -342,7 +344,7 @@ exports.update = async (req, res) => {
 
         parsedVariants = typeof variants === 'string' ? JSON?.parse(variants) : variants
 
-        const productData = { title, description, quantity, consume_type, return_policy, product_category_id: validProductCategoryId, health_category_id: validHealthCategoryId, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
+        const productData = { title, description, consume_type, return_policy, product_category_id: validProductCategoryId, health_category_id: validHealthCategoryId, brand_id, expiry_date, manufacturing_date, inStock, sideEffects };
 
         // Prepare the update operations
         const updatePromises = parsedVariants ? parsedVariants?.map(async (variant) => {
@@ -391,7 +393,6 @@ exports.update = async (req, res) => {
             await Media.deleteOne({ _id: m, product_id: product._id })
         })
 
-
         const files = [];
         if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
 
@@ -410,7 +411,6 @@ exports.update = async (req, res) => {
         // Process files
         const brochures = [];
         if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
-
             req?.files?.brochure.forEach((val) => {
                 brochures.push({
                     url: `${process.env.BASE_URL}/broucher/${val.filename}`,
@@ -420,24 +420,26 @@ exports.update = async (req, res) => {
 
             });
 
-
-            const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
-
-            const fileName = path.basename(brochure?.url);
-            const filePath = path.join(BASE_PATH, fileName);
-            try {
-                await fs.access(filePath);
-                await fs.unlink(path.join(BASE_PATH, fileName));
-
-                await Brochure.deleteOne({ _id: remove_brochure, product_id: product._id })
-
-            } catch (error) {
-                console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
-            }
-
             // Save file metadata
             await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
         }
+
+        const brochure = await Brochure.findOne({ _id: remove_brochure, product_id: product._id })
+
+        if (!brochure) {
+            handleError('Invalid brochure ID', 400, res)
+            return
+        }
+
+        const fileName = path.basename(brochure?.url);
+        const filePath = path.join(BASE_PATH, fileName);
+        try {
+            await fs.access(filePath);
+            await fs.unlink(path.join(BASE_PATH, fileName));
+        } catch (error) {
+            console.log('filePathdffffffffffffffffff>>>>>>>>>>>>>', error.message);
+        }
+        const x = await Brochure.deleteOne({ _id: brochure._id, product_id: product._id })
 
         await Product.updateOne({ _id: id }, productData, { new: true });
 
@@ -620,10 +622,8 @@ exports.getAllProducts = async (req, res) => {
             });
         }
 
-
         // Filter out deleted products
         const filterDeleted = { isDeleted: false };
-
 
         const pipeline = [
             ...searchFilter,
@@ -699,61 +699,6 @@ exports.getAllProducts = async (req, res) => {
             return { ...product, variant: variantsWithDiscounts };
         }));
 
-        // Fetch combo products
-        // Fetch combo products with category details
-        // const comboProducts = await ComboProduct.aggregate([
-        //     {
-        //         $lookup: {
-        //             from: 'products',
-        //             localField: 'product_id',
-        //             foreignField: '_id',
-        //             as: 'productDetails'
-        //         }
-        //     },
-        //     { $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true } },
-        //     {
-        //         $lookup: {
-        //             from: 'brands',
-        //             localField: 'productDetails.brand_id',
-        //             foreignField: '_id',
-        //             as: 'brand'
-        //         }
-        //     },
-        //     { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
-        //     {
-        //         $lookup: {
-        //             from: 'productcategories',
-        //             localField: 'productDetails.product_category_id',
-        //             foreignField: '_id',
-        //             as: 'productCategory'
-        //         }
-        //     },
-        //     { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
-        //     {
-        //         $lookup: {
-        //             from: 'media',
-        //             localField: 'productDetails._id',
-        //             foreignField: 'product_id',
-        //             as: 'mediaFiles'
-        //         }
-        //     },
-        //     {
-        //         $lookup: {
-        //             from: 'variants', // Add this lookup to get variant details
-        //             localField: 'product_variant_id',
-        //             foreignField: '_id',
-        //             as: 'productVariantDetails'
-        //         }
-        //     },
-        //     { $unwind: { path: '$productVariantDetails', preserveNullAndEmptyArrays: true } }, // Unwind the variant details
-
-        //     { $skip: skip },
-        //     { $limit: parseInt(limit, 10) }
-        // ]);
-
-        // Group combo products by discount_id
-        // const groupedComboProducts = groupComboProductsByDiscountId(comboProducts);
-
         // Combine results
         const allProductsWithDiscounts = [...productsWithDiscounts,];
         // Total count for pagination
@@ -767,8 +712,6 @@ exports.getAllProducts = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
-
 
 
 // Function to group combo products by discount_id and include necessary data
