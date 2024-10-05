@@ -209,7 +209,7 @@ exports.create = async (req, res) => {
             if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
                 await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
             }
-
+0
             return {
                 itemName: product.title,
                 quantity: item.quantity,
@@ -274,7 +274,7 @@ exports.create = async (req, res) => {
             await transaction.save();
         }
 
-        handleResponse(res, newOrder._doc, 'Order has been successfully placed', 201);
+        handleResponse(res, newOrder._doc, 'Order has been successfully placed.', 201);
 
     } catch (error) {
         console.log('error>>>>>>>', error);
@@ -282,6 +282,9 @@ exports.create = async (req, res) => {
     }
 };
 
+
+
+// Get admin all orders list
 exports.findAllOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
