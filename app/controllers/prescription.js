@@ -106,7 +106,6 @@ exports.findOne = async (req, res) => {
 };
 
 
-
 exports.handlePrescriptionRequest = async (req, res) => {
     try {
         const { status } = req.body
@@ -125,7 +124,6 @@ exports.handlePrescriptionRequest = async (req, res) => {
         handleError(error.message, 400, res)
     };
 };
-
 
 
 exports.update = async (req, res) => {

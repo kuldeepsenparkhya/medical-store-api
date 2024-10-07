@@ -8,7 +8,7 @@ const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmat
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
-
+// Place order
 exports.create = async (req, res) => {
     try {
         const { products, address_id, shipping_charge, order_type, user_wallet_id } = req.body
@@ -380,6 +380,8 @@ exports.findAllOrders = async (req, res) => {
     }
 };
 
+
+// Get all orders by loggedIn user
 exports.findOrdersByUserId = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
@@ -474,6 +476,8 @@ exports.findOrdersByUserId = async (req, res) => {
     }
 };
 
+
+// Get order detail by Order ID
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -547,6 +551,8 @@ exports.getOrderById = async (req, res) => {
     }
 };
 
+
+// Order cancell by logIn user
 exports.cancelledOrder = async (req, res) => {
     try {
         const { id } = req.params;
@@ -577,6 +583,7 @@ exports.cancelledOrder = async (req, res) => {
     }
 }
 
+// Manage order status by admin panel
 exports.handleOrderStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -619,6 +626,7 @@ exports.handleOrderStatus = async (req, res) => {
     }
 }
 
+// Dowload order invoice
 exports.downloadInvoice = async (req, res) => {
     try {
         const { orderID } = req.params;
@@ -696,6 +704,7 @@ exports.downloadInvoice = async (req, res) => {
     }
 };
 
+// Admin can get all users orders list
 exports.findAllUserOrders = async (req, res) => {
     try {
         // Retrieve pagination and filter parameters from query
@@ -794,101 +803,7 @@ exports.findAllUserOrders = async (req, res) => {
     }
 };
 
-
-exports.checkout = async (req, res) => {
-    var razorPayIinstance = new Razorpay({
-        key_id: 'rzp_test_GcZZFDPP0jHtC4',
-        key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
-    });
-
-    const options = {
-        amount: req.body.amount * 100,
-        currency: 'INR',
-        receipt: 'reciept#1',
-        payment_capture: 1
-    }
-    try {
-        const response = await razorPayIinstance.orders.create(options)
-
-        console.log('response>>>>>>>>>', response);
-
-
-        res.send({
-            order_id: response.id,
-            currency: response.currency,
-            amount: response.amount,
-
-        })
-
-    } catch (error) {
-        res.send({ error: true, message: error.message })
-    }
-}
-
-exports.payment = async (req, res) => {
-    const { paymentId } = req.params;
-    const razorpay = new Razorpay({
-        key_id: "rzp_test_GcZZFDPP0jHtC4",
-        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ"
-    })
-
-    try {
-        const payment = await razorpay.payments.fetch(paymentId)
-        if (!payment) {
-            return res.status(500).json("Error at razorpay loading")
-        }
-
-        res.json({
-            status: payment.status,
-            method: payment.method,
-            amount: payment.amount,
-            currency: payment.currency
-        })
-    } catch (error) {
-        res.status(500).json("failed to fetch")
-    }
-}
-
-exports.getAllPayments = async (req, res) => {
-    const razorpay = new Razorpay({
-        key_id: "rzp_test_GcZZFDPP0jHtC4",
-        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ"
-    });
-
-    try {
-        // Fetch all payments
-        const payments = await razorpay.payments.all();
-
-        // Check if payments are available
-        if (!payments || !payments.items || payments.items.length === 0) {
-            return res.status(404).json("No payments found");
-        }
-
-        // Example of sending the first payment's details (adjust as necessary)
-        const payment = payments.items.map((item) =>
-        ({
-            status: item.status,
-            method: item.method,
-            amount: item.amount / 100,
-            currency: item.currency,
-        }));
-
-
-        res.send({ payment })
-
-        // res.json({
-        //     status: payment.status,
-        //     method: payment.method,
-        //     amount: payment.amount / 100,
-        //     currency: payment.currency,
-        // });
-    } catch (error) {
-        console.error("Error fetching payments:", error); // Log the error for debugging
-        res.status(500).json({ message: "Failed to fetch payments", error: error.message });
-    }
-};
-
-
+// Get sales report for admin pannel
 exports.salesReport = async (req, res) => {
     try {
         const { startDate: startDateParam, endDate: endDateParam } = req.query;
@@ -972,13 +887,94 @@ exports.salesReport = async (req, res) => {
 };
 
 
-exports.getCoinsHistory = async (req, res) => {
+
+// Pendig for payment gateway
+exports.checkout = async (req, res) => {
+    var razorPayIinstance = new Razorpay({
+        key_id: 'rzp_test_GcZZFDPP0jHtC4',
+        key_secret: '6JdtQv2u7oUw7EWziYeyoewJ',
+    });
+
+    const options = {
+        amount: req.body.amount * 100,
+        currency: 'INR',
+        receipt: 'reciept#1',
+        payment_capture: 1
+    }
     try {
-        const orders = await Order.find({ user_id: req.user.id })
-        console.log('orders<<<<<<', orders);
-        handleResponse(res, orders, 'Retrieve loyality program history', 200)
+        const response = await razorPayIinstance.orders.create(options)
+
+        console.log('response>>>>>>>>>', response);
+
+
+        res.send({
+            order_id: response.id,
+            currency: response.currency,
+            amount: response.amount,
+
+        })
+
     } catch (error) {
-        console.log('Error>>>>>>>', error);
-        handleError(error.message, 400, res);
+        res.send({ error: true, message: error.message })
     }
 }
+
+exports.payment = async (req, res) => {
+    const { paymentId } = req.params;
+    const razorpay = new Razorpay({
+        key_id: "rzp_test_GcZZFDPP0jHtC4",
+        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ"
+    })
+
+    try {
+        const payment = await razorpay.payments.fetch(paymentId)
+        if (!payment) {
+            return res.status(500).json("Error at razorpay loading")
+        }
+
+        res.json({
+            status: payment.status,
+            method: payment.method,
+            amount: payment.amount,
+            currency: payment.currency
+        })
+    } catch (error) {
+        res.status(500).json("failed to fetch")
+    }
+}
+
+exports.getAllPayments = async (req, res) => {
+    const razorpay = new Razorpay({ key_id: "rzp_test_GcZZFDPP0jHtC4", key_secret: "6JdtQv2u7oUw7EWziYeyoewJ" });
+
+    try {
+        // Fetch all payments
+        const payments = await razorpay.payments.all();
+
+        // Check if payments are available
+        if (!payments || !payments.items || payments.items.length === 0) {
+            return res.status(404).json("No payments found");
+        }
+
+        // Example of sending the first payment's details (adjust as necessary)
+        const payment = payments.items.map((item) =>
+        ({
+            status: item.status,
+            method: item.method,
+            amount: item.amount / 100,
+            currency: item.currency,
+        }));
+
+
+        res.send({ payment })
+
+        // res.json({
+        //     status: payment.status,
+        //     method: payment.method,
+        //     amount: payment.amount / 100,
+        //     currency: payment.currency,
+        // });
+    } catch (error) {
+        console.error("Error fetching payments:", error); // Log the error for debugging
+        res.status(500).json({ message: "Failed to fetch payments", error: error.message });
+    }
+};

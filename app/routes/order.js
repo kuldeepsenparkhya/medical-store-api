@@ -28,7 +28,6 @@ module.exports = app => {
     router.get('/payments', orders.getAllPayments);
 
     router.get('/sales/report', orders.salesReport);
-    router.get('/loyality/report/history', orders.getCoinsHistory);
 
     app.use('/api', router);
 };
