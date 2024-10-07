@@ -16,7 +16,7 @@ module.exports = app => {
 
     router.delete('/orders/:id', orders.cancelledOrder);
 
-    router.patch('/orders/:id', adminAccess, orders.handleCancelledOrder);
+    router.patch('/orders/:id', adminAccess, orders.handleOrderStatus);
 
     router.get('/invoices/:id', (req, res) => {
         const { type, id } = req.params

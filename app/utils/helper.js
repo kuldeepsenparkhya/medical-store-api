@@ -523,3 +523,87 @@ exports.orderConfirmationMail = async (name, orderID, orderItems, subTotal, ship
     `;
     return message
 }
+
+
+
+exports.orderNotifiationEmail = async (name, orderID, orderItems, subTotal, shipping_charge, grandTotal, status) => {
+    const message = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Order Notification</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                background-color: #f4f4f4;
+                                margin: 0;
+                                padding: 20px;
+                            }
+                            .container {
+                                background-color: #fff;
+                                border-radius: 8px;
+                                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                                padding: 20px;
+                                max-width: 600px;
+                                margin: auto;
+                            }
+                            h1 {
+                                color: #333;
+                            }
+                            p {
+                                color: #555;
+                                line-height: 1.5;
+                            }
+                            .order-details {
+                                border-top: 2px solid #4CAF50;
+                                margin-top: 20px;
+                                padding-top: 20px;
+                            }
+                            .button {
+                                background-color: #4CAF50;
+                                color: white;
+                                padding: 10px 20px;
+                                text-decoration: none;
+                                border-radius: 5px;
+                                display: inline-block;
+                            }
+                            .footer {
+                                margin-top: 20px;
+                                font-size: 0.9em;
+                                color: #777;
+                            }
+                        </style>
+                    </head>
+                    <body>
+
+                    <div class="container">
+                        <h1>Order Confirmation</h1>
+                        <p>Dear [User's Name],</p>
+                        <p>Thank you for your order! Your order has been successfully placed, and we are currently processing it.</p>
+                        
+                        <div class="order-details">
+                            <h2>Order Details</h2>
+                            <p><strong>Order Number:</strong> [Order Number]</p>
+                            <p><strong>Order Date:</strong> [Order Date]</p>
+                            <p><strong>Total Amount:</strong> $[Total Amount]</p>
+                            <p><strong>Shipping Address:</strong> [Shipping Address]</p>
+                        </div>
+                        
+                        <p>If you have any questions about your order, please feel free to contact us.</p>
+                        
+                        <a href="[Link to Order Status]" class="button">View Order Status</a>
+                        
+                        <div class="footer">
+                            <p>Thank you for shopping with us!</p>
+                            <p>Best Regards,<br>Your Company Name</p>
+                        </div>
+                    </div>
+
+                    </body>
+                    </html>
+
+    `;
+    return message
+}

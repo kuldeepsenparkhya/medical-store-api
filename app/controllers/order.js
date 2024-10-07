@@ -4,7 +4,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail } = require("../utils/helper");
+const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
@@ -206,10 +206,11 @@ exports.create = async (req, res) => {
 
             const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id })
 
+            // Check product variant availability in inventory and product list
             if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
                 await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
             }
-0
+
             return {
                 itemName: product.title,
                 quantity: item.quantity,
@@ -281,7 +282,6 @@ exports.create = async (req, res) => {
         handleError(error.message, 400, res);
     }
 };
-
 
 
 // Get admin all orders list
@@ -533,6 +533,7 @@ exports.getOrderById = async (req, res) => {
             shippingCost: order.shippingCost,
             total: order.total,
             status: order.status,
+            order_type: order.order_type,
             createdAt: order.createdAt,
             updatedAt: order.updatedAt,
             __v: order.__v,
@@ -576,7 +577,7 @@ exports.cancelledOrder = async (req, res) => {
     }
 }
 
-exports.handleCancelledOrder = async (req, res) => {
+exports.handleOrderStatus = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -603,8 +604,13 @@ exports.handleCancelledOrder = async (req, res) => {
             }))
         }
 
-
         await Order.updateOne({ _id: order._id }, { status: status }, { new: true })
+
+        const user = await User.findOne({ _id: order.user_id })
+
+        const subject = `Your order is ${status}`
+        const message = orderNotifiationEmail(user.name, Order._id, order.subTotal, order.shipping_charge, order.total, order.order_type, status)
+        sendMailer(user.email, subject, message, res);
 
         res.status(200).send({ message: `Order has been successfully ${status}`, error: false })
 
@@ -619,10 +625,7 @@ exports.downloadInvoice = async (req, res) => {
         const order = await Order.findOne({ _id: orderID, userID: req.user?.id })
         // res.send(orders)
 
-
-
         // const x = downloadInvoice(orders)
-
 
         if (!order) {
             return res.status(404).send("Order not found");
@@ -905,16 +908,9 @@ exports.salesReport = async (req, res) => {
         }
 
         // Fetch orders and transactions within the date range
-        const orders = await Order.find({
-            status: 'pending',
-            order_type: 'COD',
-            createdAt: { $gte: startDate, $lte: endDate }
-        }, { total: 1, createdAt: 1 });
+        const orders = await Order.find({ status: 'delivered', order_type: 'COD', createdAt: { $gte: startDate, $lte: endDate } }, { total: 1, createdAt: 1 });
 
-        const transactions = await Transaction.find({
-            status: 'created',
-            createdAt: { $gte: startDate, $lte: endDate }
-        }, { paid_amount: 1, createdAt: 1 });
+        const transactions = await Transaction.find({ status: 'created', createdAt: { $gte: startDate, $lte: endDate } }, { paid_amount: 1, createdAt: 1 });
 
         // Prepare data structure for yearly sales
         const yearlySales = {};
