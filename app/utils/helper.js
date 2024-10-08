@@ -33,7 +33,6 @@ exports.handleError = (error, status = 400, res,) => {
 
 
 
-
 // Modify the getPagination function to correctly reflect the data
 exports.getPagination = async (query, fetchedData, totalCount) => {
     const { page = 1, limit = 10 } = query;
@@ -48,7 +47,6 @@ exports.getPagination = async (query, fetchedData, totalCount) => {
 
     return paginationInfo;
 };
-
 
 
 
@@ -271,6 +269,108 @@ exports.generateInvoice = (invoiceData) => {
     doc.end();
 };
 
+
+
+exports.newGenerateInvoice = (invoiceData, res) => {
+    return new Promise((resolve, reject) => {
+        const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
+        const doc = new PDFDocument();
+
+        // Set headers for file download
+        res.setHeader('Content-disposition', `attachment; filename=invoice_${invoiceData.orderId}.pdf`);
+        res.setHeader('Content-type', 'application/pdf');
+
+        // Pipe the PDF document directly to the response
+        doc.pipe(res);
+
+        // Add content to the PDF
+        doc.fontSize(27).text('Invoice', { align: 'center' }).moveDown();
+
+        // Add invoice details
+        doc.fontSize(12)
+            .text(`Invoice Date: ${formattedDate}`, 50, 100)
+            .text(`Invoice Number: ${invoiceData.orderId}`, 50, 120)
+            .moveDown();
+
+        // Add customer information
+        doc.fontSize(14).text('Customer Information:', 50, 150)
+            .fontSize(12)
+            .text(`Name: ${invoiceData.customerName}`, 50, 170)
+            .text(`Email: ${invoiceData.customerEmail}`, 50, 190)
+            .text(`Mobile: ${invoiceData.customerMobile}`, 50, 210)
+            .text(`Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 230)
+            .moveDown();
+
+        // Add table headers for order details
+        const startX = 50;
+        const startY = 270;
+        const columnWidths = {
+            itemName: 200,
+            quantity: 80,
+            unitPrice: 80,
+            total: 80,
+        };
+
+        doc.fontSize(14).text('Order Details:', startX, startY - 20);
+
+        // Draw table headers
+        doc.fontSize(12)
+            .text('Item Name', startX, startY, { width: columnWidths.itemName, underline: true })
+            .text('Quantity', startX + columnWidths.itemName, startY, { width: columnWidths.quantity, underline: true, align: 'center' })
+            .text('Unit Price', startX + columnWidths.itemName + columnWidths.quantity, startY, { width: columnWidths.unitPrice, underline: true, align: 'right' })
+            .text('Total', startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, startY, { width: columnWidths.total, underline: true, align: 'right' })
+            .moveTo(startX, startY + 15)
+            .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, startY + 15)
+            .stroke();
+
+        // Start Y position for product details
+        let y = startY + 20;
+
+        // Loop through order items and add them to the table
+        invoiceData?.orderItems?.forEach((item) => {
+            const total = item.quantity * item.price;
+            // Draw borders for each row
+            doc.moveTo(startX, y - 5)
+                .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
+                .stroke();
+
+            // Draw text within each column
+            doc.fontSize(12)
+                .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left' })
+                .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
+                .text(`$${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
+                .text(`$${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
+
+            y += 20; // Move down the Y position for the next row
+        });
+
+        // Draw borders for the last row
+        doc.moveTo(startX, y - 5)
+            .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
+            .stroke();
+
+        // Add subtotal, shipping, and total amounts
+        doc.fontSize(12)
+            .text(`Subtotal: Rs.${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
+            .text(`Shipping Charges: Rs.${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
+            .fontSize(16)
+            .text(`Grand Total: Rs.${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
+
+        // Finalize the PDF
+        doc.end();
+
+        // Resolve the promise when PDF is done writing
+        doc.on('finish', () => {
+            resolve();
+        });
+
+        // Handle errors during PDF generation
+        doc.on('error', (error) => {
+            console.error('Error during PDF generation:', error);
+            reject(error);
+        });
+    });
+};
 
 
 exports.downloadInvoice = (orders) => {
@@ -523,7 +623,6 @@ exports.orderConfirmationMail = async (name, orderID, orderItems, subTotal, ship
     `;
     return message
 }
-
 
 
 exports.orderNotifiationEmail = async (name, orderID, orderItems, subTotal, shipping_charge, grandTotal, status) => {

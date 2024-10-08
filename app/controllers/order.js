@@ -4,7 +4,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail } = require("../utils/helper");
+const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail, newGenerateInvoice } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require('../modals');
 const { isValidObjectId } = require('mongoose');
 
@@ -329,6 +329,17 @@ exports.findAllOrders = async (req, res) => {
                 const productDetails = await Product.findOne({ _id: product.product_id }).lean();
                 // Fetch product variant details
                 const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+
+                // Check if productDetails and productVariantDetails exist
+                if (!productDetails) {
+                    console.error(`Product not found: ${product.product_id}`);
+                    return null; // or you can return a default object
+                }
+                if (!productVariantDetails) {
+                    console.error(`Product variant not found: ${product.product_variant_id}`);
+                    return null; // or you can return a default object
+                }
+
                 // Assemble the response format
                 return {
                     product: {
@@ -358,9 +369,12 @@ exports.findAllOrders = async (req, res) => {
                 };
             }));
 
+            // Filter out null products if any were not found
+            const validProducts = processedProducts.filter(product => product !== null);
+
             return {
                 ...order,
-                products: processedProducts,
+                products: validProducts,
             };
         }));
 
@@ -376,6 +390,10 @@ exports.findAllOrders = async (req, res) => {
 
     } catch (error) {
         // Error handling
+
+        console.log('error>>>>>>>>>>>>', error);
+
+
         handleError(error.message, 400, res);
     }
 };
@@ -625,84 +643,6 @@ exports.handleOrderStatus = async (req, res) => {
         handleError(error.message, 400, res)
     }
 }
-
-// Dowload order invoice
-exports.downloadInvoice = async (req, res) => {
-    try {
-        const { orderID } = req.params;
-        const order = await Order.findOne({ _id: orderID, userID: req.user?.id })
-        // res.send(orders)
-
-        // const x = downloadInvoice(orders)
-
-        if (!order) {
-            return res.status(404).send("Order not found");
-        }
-
-        // Create a new PDF document
-        const doc = new PDFDocument();
-
-        // File path to save the generated PDF
-        const filePath = path.join(__dirname, "../downloadInvoice", 'example.pdf');
-
-        // Pipe the PDF document to a write stream
-        const writeStream = fs.createWriteStream(filePath);
-        doc.pipe(writeStream);
-
-        // Add content to the PDF
-        doc
-            .fontSize(27)
-            .text('Invoice', { align: 'center' })
-            .moveDown(); // Move down one line
-
-        // Add invoice details
-        doc
-            .fontSize(12)
-            .text(`Invoice Date: ${order.createdAt}`, 50, 120)
-            .text(`Invoice Number: ${order._id}`, 50, 140)
-            .moveDown(); // Move down one line
-
-        // Add customer information
-        doc
-            .fontSize(14)
-            .text('Customer Information:', 50, 180)
-            .fontSize(12)
-            .text('Name: John Doe', 50, 200)
-            .text('Email: john@example.com', 50, 220)
-            .moveDown(); // Move down one line
-
-        // Add order details
-        order.products.forEach((item, index) => {
-            doc
-                .fontSize(14)
-                .text(`Order Details #${index + 1}:`, 50, 260 + index * 40)
-                .fontSize(12)
-                .text(`Product: ${item.quantity}, Price: ${item?.price}`, 50, 280 + index * 40)
-                .moveDown(); // Move down one line
-        });
-
-        // Add total amount
-        doc
-            .fontSize(16)
-            .text(`Total Amount:${order.totalPrice}`, 50, 340);
-
-        // Finalize PDF file
-        doc.end();
-
-        // After finishing, respond with the PDF
-        writeStream.on('finish', function () {
-            res.download(filePath, 'example.pdf', function (err) {
-                if (err) {
-                    handleError(err, 500, res);
-                } else {
-                    fs.unlinkSync(filePath); // Delete the file after downloading
-                }
-            });
-        });
-    } catch (error) {
-        handleError(error, 400, res);
-    }
-};
 
 // Admin can get all users orders list
 exports.findAllUserOrders = async (req, res) => {
@@ -976,5 +916,68 @@ exports.getAllPayments = async (req, res) => {
     } catch (error) {
         console.error("Error fetching payments:", error); // Log the error for debugging
         res.status(500).json({ message: "Failed to fetch payments", error: error.message });
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+// --------------------------------------------- Generate Invoice ------------------------------------------------------//
+
+exports.downloadInvoice = async (req, res) => {
+    try {
+        const { orderID } = req.params;
+        const order = await Order.findOne({ _id: orderID, userID: req.user?.id });
+        if (!order) {
+            return res.status(404).send("Order not found");
+        }
+
+        const user = await User.findOne({ _id: order.user_id });
+        const address = await AddressBook.findOne({ _id: order.address_id });
+
+        const orderItems = await Promise.all(order.products.map(async (item) => {
+            const product = await Product.findOne({ _id: item.product_id });
+            const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id });
+
+            product._doc.variant = variant;
+
+            return {
+                itemName: product.title,
+                quantity: item.quantity,
+                price: item.price
+            }
+        }));
+
+        const invoiceData = {
+            orderId: order._id,
+            customerName: user?.name,
+            customerEmail: user?.email,
+            customerMobile: user?.mobile,
+
+            address: {
+                address: address.address,
+                state: address.state,
+                city: address.city,
+                pincode: address.pincode,
+            },
+            subTotal: order.subTotal,
+            shipping_charge: order.shipping_charge,
+            grandTotal: order.grandTotal,
+            orderItems: orderItems,
+            invoiceDate: order.createdAt
+        };
+
+        // Call the generateInvoice function and pass the response object
+        await newGenerateInvoice(invoiceData, res);
+    } catch (error) {
+        console.error('Error generating invoice:', error);
+        handleError(error, 400, res);
     }
 };

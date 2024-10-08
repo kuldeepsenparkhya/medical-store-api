@@ -29,5 +29,14 @@ module.exports = app => {
 
     router.get('/sales/report', orders.salesReport);
 
+
+
+
+
+    router.get('/invoices/generate/:orderID', orders.downloadInvoice)
+
+
+
+
     app.use('/api', router);
 };
