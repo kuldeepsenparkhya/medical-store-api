@@ -18,25 +18,15 @@ module.exports = app => {
 
     router.patch('/orders/:id', adminAccess, orders.handleOrderStatus);
 
-    router.get('/invoices/:id', (req, res) => {
-        const { type, id } = req.params
-        res.sendFile(path.join(__dirname, `../invoices/${id}.pdf`,))
-    })
-
     router.post('/checkout', orders.checkout);
     router.get('/payment/:paymentId', orders.payment);
     router.get('/payments', orders.getAllPayments);
 
     router.get('/sales/report', orders.salesReport);
 
-
-
-
-
+    // -------------------------- Generate Oder Invoice---------------------------------------------//
     router.get('/invoices/generate/:orderID', orders.downloadInvoice)
-
-
-
+    // -----------------------------------------------------------------------//
 
     app.use('/api', router);
 };

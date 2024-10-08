@@ -218,27 +218,6 @@ exports.create = async (req, res) => {
             }
         }));
 
-        const invoiceData = {
-            orderId: newOrder._id,
-            customerName: user?.name,
-            customerEmail: user?.email,
-            customerMobile: user?.mobile,
-
-            address: {
-                address: address.address,
-                state: address.state,
-                city: address.city,
-                pincode: address.pincode,
-            },
-            subTotal,
-            shipping_charge,
-            grandTotal,
-            orderItems,
-            invoiceDate: newOrder.createdAt
-        }
-
-        generateInvoice(invoiceData)
-
         const subject = 'Thank You for Your Purchase!';
 
         const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type)
@@ -920,16 +899,7 @@ exports.getAllPayments = async (req, res) => {
 };
 
 
-
-
-
-
-
-
-
-
-
-// --------------------------------------------- Generate Invoice ------------------------------------------------------//
+// --------------------------------------------- Generate Oder Invoice ------------------------------------------------------//
 
 exports.downloadInvoice = async (req, res) => {
     try {
@@ -968,8 +938,8 @@ exports.downloadInvoice = async (req, res) => {
                 pincode: address.pincode,
             },
             subTotal: order.subTotal,
-            shipping_charge: order.shipping_charge,
-            grandTotal: order.grandTotal,
+            shipping_charge: order.shippingCost,
+            grandTotal: order.total,
             orderItems: orderItems,
             invoiceDate: order.createdAt
         };
@@ -981,3 +951,5 @@ exports.downloadInvoice = async (req, res) => {
         handleError(error, 400, res);
     }
 };
+
+// --------------------------------------------- End of generate Oder Invoice ------------------------------------------------------//

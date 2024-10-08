@@ -11,12 +11,7 @@ const { Product } = require('../modals');
 const moment = require('moment');
 
 
-exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({
-    ...data,
-    error: false,
-    message: message
-
-});
+exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({ ...data, error: false, message: message });
 
 exports.handleError = (error, status = 400, res,) => {
     if (error.details) {
@@ -30,7 +25,6 @@ exports.handleError = (error, status = 400, res,) => {
 
     return res.status(status).send({ message: error, error: true, })
 }
-
 
 
 // Modify the getPagination function to correctly reflect the data
@@ -91,186 +85,6 @@ exports.sendNotification = (subscription, payload) => {
     webpush.sendNotification(subscription, payload).catch(err => console.error(err));
 }
 
-
-// exports.generateInvoice = (invoiceData) => {
-//     const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
-//     const doc = new PDFDocument();
-
-//     // File path to save the generated PDF
-//     const filePath = path.join(__dirname, "../invoices", `${invoiceData.orderId}.pdf`);
-
-//     // Pipe the PDF document to a write stream
-//     doc.pipe(fs.createWriteStream(filePath));
-
-//     // Add content to the PDF
-//     doc
-//         .fontSize(27)
-//         .text('Invoice', { align: 'center' })
-//         .moveDown(); // Move down one line
-
-//     // Add invoice details
-//     doc
-//         .fontSize(12)
-//         .text(`Invoice Date: ${formattedDate}`, 50, 100)
-//         .text(`Invoice Number: ${invoiceData.orderId}`, 50, 120)
-//         .moveDown(); // Move down one line
-
-//     // Add customer information
-//     doc
-//         .fontSize(14)
-//         .text('Customer Information:', 50, 150)
-//         .fontSize(12)
-//         .text(`Name: ${invoiceData.customerName}`, 50, 170)
-//         .text(`Email: ${invoiceData.customerEmail}`, 50, 190)
-//         .text(`Mobile: ${invoiceData.customerMobile}`, 50, 210)
-//         .text(`Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 230)
-//         .moveDown(); // Move down one line
-
-//     // Add table headers for order details
-//     doc
-//         .fontSize(14)
-//         .text('Order Details:', 50, 270)
-//         .fontSize(12)
-//         .text('Item Name', 50, 300)
-//         .text('Quantity', 250, 300)
-//         .text('Unit Price', 350, 300)
-//         .text('Total', 450, 300)
-//         .moveTo(50, 320) // Draw line under headers
-//         .lineTo(550, 320)
-//         .stroke();
-
-//     // Start Y position for product details
-//     let y = 340;
-
-//     // Loop through order items and add them to the table
-//     invoiceData.orderItems.forEach((item) => {
-//         const total = item.quantity * item.price;
-//         doc
-//             .text(item.itemName, 50, y)
-//             .text(item.quantity, 250, y)
-//             .text(`$${item.price.toFixed(2)}`, 350, y)
-//             .text(`$${total.toFixed(2)}`, 450, y);
-
-//         y += 20; // Move down the Y position for the next row
-//     });
-
-//     // Add subtotal, shipping, and total amounts
-//     doc
-//         .fontSize(12)
-//         .text(`Subtotal: $${invoiceData.subTotal.toFixed(2)}`, 400, y + 20)
-//         .text(`Shipping Charges: $${invoiceData.shipping_charge.toFixed(2)}`, 400, y + 40)
-//         .fontSize(16)
-//         .text(`Grand Total: $${invoiceData.grandTotal.toFixed(2)}`, 400, y + 70, { bold: true });
-
-//     // Finalize the PDF and end the stream
-//     doc.end();
-// };
-
-
-
-exports.generateInvoice = (invoiceData) => {
-    const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
-    const doc = new PDFDocument();
-
-    // File path to save the generated PDF
-    const filePath = path.join(__dirname, "../invoices", `${invoiceData.orderId}.pdf`);
-
-    // Pipe the PDF document to a write stream
-    doc.pipe(fs.createWriteStream(filePath));
-
-    // Add content to the PDF
-    doc
-        .fontSize(27)
-        .text('Invoice', { align: 'center' })
-        .moveDown(); // Move down one line
-
-    // Add invoice details
-    doc
-        .fontSize(12)
-        .text(`Invoice Date: ${formattedDate}`, 50, 100)
-        .text(`Invoice Number: ${invoiceData.orderId}`, 50, 120)
-        .moveDown(); // Move down one line
-
-    // Add customer information
-    doc
-        .fontSize(14)
-        .text('Customer Information:', 50, 150)
-        .fontSize(12)
-        .text(`Name: ${invoiceData.customerName}`, 50, 170)
-        .text(`Email: ${invoiceData.customerEmail}`, 50, 190)
-        .text(`Mobile: ${invoiceData.customerMobile}`, 50, 210)
-        .text(`Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 230)
-        .moveDown(); // Move down one line
-
-    // Add table headers for order details
-    const startX = 50;
-    const startY = 270;
-    const columnWidths = {
-        itemName: 200,
-        quantity: 80,
-        unitPrice: 80,
-        total: 80,
-    };
-
-    doc
-        .fontSize(14)
-        .text('Order Details:', startX, startY - 20);
-
-    // Draw table headers
-    doc
-        .fontSize(12)
-        .text('Item Name', startX, startY, { width: columnWidths.itemName, underline: true })
-        .text('Quantity', startX + columnWidths.itemName, startY, { width: columnWidths.quantity, underline: true, align: 'center' })
-        .text('Unit Price', startX + columnWidths.itemName + columnWidths.quantity, startY, { width: columnWidths.unitPrice, underline: true, align: 'right' })
-        .text('Total', startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, startY, { width: columnWidths.total, underline: true, align: 'right' })
-        .moveTo(startX, startY + 15)
-        .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, startY + 15)
-        .stroke();
-
-    // Start Y position for product details
-    let y = startY + 20;
-
-    // Loop through order items and add them to the table with borders
-    invoiceData.orderItems.forEach((item) => {
-        const total = item.quantity * item.price;
-
-        // Draw borders for each row
-        doc
-            .moveTo(startX, y - 5)
-            .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
-            .stroke();
-
-        // Draw text within each column with word wrap and alignments
-        doc
-            .fontSize(12)
-            .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left' })
-            .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
-            .text(`$${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
-            .text(`$${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
-
-        y += 20; // Move down the Y position for the next row
-    });
-
-    // Draw borders for the last row
-    doc
-        .moveTo(startX, y - 5)
-        .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
-        .stroke();
-
-    // Add subtotal, shipping, and total amounts
-    doc
-        .fontSize(12)
-        .text(`Subtotal: $${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
-        .text(`Shipping Charges: $${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
-        .fontSize(16)
-        .text(`Grand Total: $${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
-
-    // Finalize the PDF and end the stream
-    doc.end();
-};
-
-
-
 exports.newGenerateInvoice = (invoiceData, res) => {
     return new Promise((resolve, reject) => {
         const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
@@ -305,10 +119,10 @@ exports.newGenerateInvoice = (invoiceData, res) => {
         const startX = 50;
         const startY = 270;
         const columnWidths = {
-            itemName: 200,
-            quantity: 80,
-            unitPrice: 80,
-            total: 80,
+            itemName: 250, // Increased width for better alignment
+            quantity: 100,
+            unitPrice: 100,
+            total: 100,
         };
 
         doc.fontSize(14).text('Order Details:', startX, startY - 20);
@@ -329,6 +143,8 @@ exports.newGenerateInvoice = (invoiceData, res) => {
         // Loop through order items and add them to the table
         invoiceData?.orderItems?.forEach((item) => {
             const total = item.quantity * item.price;
+            const rowHeight = Math.max(25, Math.ceil(doc.heightOfString(item.itemName, { width: columnWidths.itemName }) / 12) * 12); // Dynamic height based on item name length
+
             // Draw borders for each row
             doc.moveTo(startX, y - 5)
                 .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
@@ -336,12 +152,13 @@ exports.newGenerateInvoice = (invoiceData, res) => {
 
             // Draw text within each column
             doc.fontSize(12)
-                .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left' })
+                .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left', continued: true }) // Use continued to allow text wrapping
+                .text('', { width: columnWidths.itemName, height: rowHeight }) // To create a new line if necessary
                 .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
-                .text(`$${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
-                .text(`$${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
+                .text(`${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
+                .text(`${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
 
-            y += 20; // Move down the Y position for the next row
+            y += rowHeight + 5; // Adjust y position based on dynamic row height
         });
 
         // Draw borders for the last row
@@ -351,8 +168,8 @@ exports.newGenerateInvoice = (invoiceData, res) => {
 
         // Add subtotal, shipping, and total amounts
         doc.fontSize(12)
-            .text(`Subtotal: Rs.${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
-            .text(`Shipping Charges: Rs.${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
+            .text(`Subtotal: ${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
+            .text(`Shipping Charges: ${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
             .fontSize(16)
             .text(`Grand Total: Rs.${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
 
@@ -373,59 +190,6 @@ exports.newGenerateInvoice = (invoiceData, res) => {
 };
 
 
-exports.downloadInvoice = (orders) => {
-    // Create a new PDF document
-    const doc = new PDFDocument();
-
-    // File path to save the generated PDF
-    const filePath = path.join(__dirname, "../invoices", 'example.pdf');
-
-    // Pipe the PDF document to a write stream
-    doc.pipe(fs.createWriteStream(filePath));
-
-    // Add content to the PDF
-    doc
-        .fontSize(27)
-        .text('Invoice', { align: 'center' })
-        .moveDown(); // Move down one line
-
-    // Add invoice details
-    doc
-        .fontSize(12)
-        .text(`Invoice Date: ${orders.createdAt}`, 50, 120)
-        .text('Invoice Number: #123456789', 50, 140)
-        .moveDown(); // Move down one line
-
-    // Add customer information
-    doc
-        .fontSize(14)
-        .text('Customer Information:', 50, 180)
-        .fontSize(12)
-        .text('Name: John Doe', 50, 200)
-        .text('Email: john@example.com', 50, 220)
-        .moveDown(); // Move down one line
-
-    // Add order details
-
-    orders?.products?.map((item) => {
-        doc
-            .fontSize(14)
-            .text('Order Details:', 50, 260)
-            .fontSize(12)
-            .text(`Product 1: ${item.price}`, 50, 280)
-            .moveDown(); // Move down one line
-    })
-
-
-
-    // Add total amount
-    doc
-        .fontSize(16)
-        .text('Total Amount: $80', 50, 340);
-
-    // Finalize PDF file
-    doc.end();
-}
 
 
 exports.getProducts = async (productIds) => {
