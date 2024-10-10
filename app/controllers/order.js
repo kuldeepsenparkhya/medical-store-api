@@ -75,6 +75,7 @@ exports.create = async (req, res) => {
 
         // const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
         // Check inventory availability
+        // https://we.tl/t-JJ4cGk5YLa
 
         const outOfStockVariants = [];
         let dueQuantity
@@ -262,7 +263,7 @@ exports.create = async (req, res) => {
     }
 };
 
-
+ 
 // Get admin all orders list
 exports.findAllOrders = async (req, res) => {
     try {
