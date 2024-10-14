@@ -50,66 +50,65 @@ exports.create = async (req, res) => {
             isRequirePrescription
         };
 
+        // Create new product instance
         const newProduct = new Product(productData);
-        const newVarient = typeof variants === 'string' ? JSON?.parse(variants) : variants
-        // Process variants if provided
-        if (newVarient && Array.isArray(newVarient)) {
-            const variantData = newVarient.map(variant => {
-                variant.discounted_id = variant.discounted_id ? variant.discounted_id : null
-                const data = {
-                    ...variant,
-                    isDeleted: false,
-                    productId: newProduct._id
-                }
-                return data
-            })
+
+        // Process variants
+        const newVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+
+        let variantData = [];
+        if (newVariants && Array.isArray(newVariants)) {
+            variantData = newVariants.map(variant => ({
+                ...variant,
+                discounted_id: variant.discounted_id || null,
+                isDeleted: false,
+                productId: newProduct._id,
+            }));
             // Insert all variants in one go
             await ProductVariant.insertMany(variantData);
         }
 
-        // Process product files
-        const files = [];
-        if (req?.files?.productFiles && Array.isArray(req?.files?.productFiles)) {
-            req?.files?.productFiles.forEach((val) => {
-                files.push({
-                    url: `${process.env.BASE_URL}/media/${val.filename}`,
-                    mimetype: val.mimetype,
-                    product_id: newProduct._id
-                });
-            });
+        // Process files
+        const files = req?.files?.productFiles || [];
+        const brochures = req?.files?.brochure || [];
 
-            // Save file metadata
-            await Media.insertMany(files); // Use insertMany to handle multiple documents
-        }
+        const mediaFiles = files.map(file => ({
+            url: `${process.env.BASE_URL}/media/${file.filename}`,
+            mimetype: file.mimetype,
+            product_id: newProduct._id,
+        }));
 
-        // Process brochures files
-        const brochures = [];
-        if (req?.files?.brochure && Array.isArray(req?.files?.brochure)) {
+        const brochureFiles = brochures.map(file => ({
+            url: `${process.env.BASE_URL}/broucher/${file.filename}`,
+            mimetype: file.mimetype,
+            product_id: newProduct._id,
+        }));
 
-            req?.files?.brochure.forEach((val) => {
-                brochures.push({
-                    url: `${process.env.BASE_URL}/broucher/${val.filename}`,
-                    mimetype: val.mimetype,
-                    product_id: newProduct._id
-                });
-            });
+        // Save media and brochures
+        await Promise.all([
+            Media.insertMany(mediaFiles),
+            Brochure.insertMany(brochureFiles),
+        ]);
 
-            // Save file metadata
-            await Brochure.insertMany(brochures); // Use insertMany to handle multiple documents
-        }
+        // Find the variants to create inventory records
+        const savedVariants = await ProductVariant.find({ productId: newProduct._id });
 
-        const varients = await ProductVariant.find({ productId: newProduct._id })
-
-        const inventory = varients?.map(async (item) => {
-            const data = {
+        // Create inventory records
+        const inventoryPromises = savedVariants.map(item => {
+            const inventoryData = {
                 product_variant_id: item._id,
                 product_id: item.productId,
                 total_variant_quantity: item.quantity,
-            }
+                sale_variant_quantity: 0
+            };
+            const newInventory = new Inventory(inventoryData);
+            return newInventory.save();
+        });
 
-            const newInventory = new Inventory(data);
-            await newInventory.save();
-        })
+        // Wait for all inventory saves to complete
+        await Promise.all(inventoryPromises);
+
+        // Save the new product
         await newProduct.save();
 
         // Send response

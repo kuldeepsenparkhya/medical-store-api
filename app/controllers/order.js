@@ -75,8 +75,6 @@ exports.create = async (req, res) => {
 
         // const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
         // Check inventory availability
-        // https://we.tl/t-JJ4cGk5YLa
-
         const outOfStockVariants = [];
         let dueQuantity
 
@@ -263,7 +261,7 @@ exports.create = async (req, res) => {
     }
 };
 
- 
+
 // Get admin all orders list
 exports.findAllOrders = async (req, res) => {
     try {
@@ -729,77 +727,33 @@ exports.salesReport = async (req, res) => {
         const { startDate: startDateParam, endDate: endDateParam } = req.query;
 
         // Parse the dates from query parameters
-        const startDate = new Date(startDateParam);
-        const endDate = new Date(endDateParam);
+        const startDate = startDateParam
+        const endDate = endDateParam
 
-        // Validate date inputs
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            return res.status(400).send({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
-        }
+        // // Validate date inputs
+        // if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        //     return res.status(400).send({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
+        // }
 
-        // Check if the start date is before the end date
-        if (startDate > endDate) {
-            return res.status(400).send({ error: 'Start date must be before end date.' });
-        }
+        // // Check if the start date is before the end date   
+        // if (startDate > endDate) {
+        //     return res.status(400).send({ error: 'Start date must be before end date.' });
+        // }
 
         // Fetch orders and transactions within the date range
-        const orders = await Order.find({ status: 'delivered', order_type: 'COD', createdAt: { $gte: startDate, $lte: endDate } }, { total: 1, createdAt: 1 });
+
+        const orders = await Order.find({ status: 'pending', order_type: 'COD', createdAt: { $gte: startDate, $lte: endDate } });
+
+
+        console.log('orders', orders);
+
+
 
         const transactions = await Transaction.find({ status: 'created', createdAt: { $gte: startDate, $lte: endDate } }, { paid_amount: 1, createdAt: 1 });
 
-        // Prepare data structure for yearly sales
-        const yearlySales = {};
-        const yearlyPrepaidSales = {};
-        const yearlyTotal = {};
 
-        // Populate sales data for the years involved
-        const startYear = startDate.getFullYear();
-        const endYear = endDate.getFullYear();
 
-        // Initialize arrays for each year from startYear to endYear
-        for (let year = startYear; year <= endYear; year++) {
-            yearlySales[year] = Array(12).fill(0);  // 12 months
-            yearlyPrepaidSales[year] = Array(12).fill(0);  // 12 months
-            yearlyTotal[year] = 0;  // Initialize total sales for each year
-        }
-
-        // Aggregate COD sales by year and month
-        orders.forEach(order => {
-            const orderDate = new Date(order.createdAt);
-            const year = orderDate.getFullYear();
-            const month = orderDate.getMonth();  // Get month index (0-11)
-
-            if (yearlySales[year]) {
-                yearlySales[year][month] += order.total;  // Add the total to the correct month
-                yearlyTotal[year] += order.total;  // Add to the yearly total
-            }
-        });
-
-        // Aggregate PREPAID sales by year and month
-        transactions.forEach(transaction => {
-            const transactionDate = new Date(transaction.createdAt);
-            const year = transactionDate.getFullYear();
-            const month = transactionDate.getMonth();  // Get month index (0-11)
-
-            if (yearlyPrepaidSales[year]) {
-                yearlyPrepaidSales[year][month] += transaction.paid_amount;  // Add the paid amount to the correct month
-                yearlyTotal[year] += transaction.paid_amount;  // Add to the yearly total
-            }
-        });
-
-        // Create a structured response
-        const response = Object.keys(yearlySales).map(year => ({
-            year,
-            monthlySales: yearlySales[year].map((codSales, monthIndex) => ({
-                month: new Date(year, monthIndex).toLocaleString('default', { month: 'long' }),
-                totalSalesCOD: codSales.toFixed(2),
-                totalSalesPREPAID: (yearlyPrepaidSales[year][monthIndex] || 0).toFixed(2),
-                grandTotalSales: (codSales + (yearlyPrepaidSales[year][monthIndex] || 0)).toFixed(2)
-            })),
-            totalSalesForYear: yearlyTotal[year].toFixed(2)  // Add total sales for each year
-        }));
-
-        res.status(200).send(response);
+        res.status(200).send(orders);
     } catch (error) {
         console.log('Error in salesReport:', error);
         return res.status(500).send({ message: 'Internal server error' });

@@ -116,6 +116,5 @@ app.get('*', (req, res) => {
 });
 
 // app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
-// https://we.tl/t-JJ4cGk5YLa
 app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
 
