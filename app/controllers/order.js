@@ -6,7 +6,8 @@ const path = require('path');
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail, newGenerateInvoice } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require('../modals');
-const { isValidObjectId } = require('mongoose');
+const { isValidObjectId, default: mongoose } = require('mongoose');
+
 
 // Place order
 exports.create = async (req, res) => {
@@ -106,11 +107,11 @@ exports.create = async (req, res) => {
         const newData = await Promise.all(products.map(async (item, i) => {
             if (item?.discount_id !== null && item.discount_id === undefined) {
                 const discount = await Discount.findOne({ _id: item?.discount_id })
-                item.total = discount?.discount_type === 'perc' ? (item?.quantity * item.price) * (1 - discount?.discount / 100) : (item.quantity * item.price) - discount?.discount;
+                item.total = discount?.discount_type === 'perc' ? (Number(item?.quantity) * Number(item.price)) * (1 - discount?.discount / 100) : (Number(item.quantity) * Number(item.price)) - discount?.discount;
                 return item;
             }
             else {
-                item.total = item.quantity * item.price
+                item.total = Number(item.quantity) * Number(item.price)
                 return item;
             }
         }))
@@ -120,8 +121,8 @@ exports.create = async (req, res) => {
             subTotal += item.total;
         });
 
-        let grandTotal;
 
+        let grandTotal;
         // Calculate initial total including subtotal and shipping charge
         const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
 
@@ -264,115 +265,331 @@ exports.create = async (req, res) => {
 
 // Get admin all orders list
 exports.findAllOrders = async (req, res) => {
-    try {
-        // Retrieve pagination and filter parameters from query
-        const { page = 1, limit = 10, period = '3months' } = req.query;
+    // try {
+    //     // Retrieve pagination and filter parameters from query
+    //     const { page = 1, limit = 10, period = '3months' } = req.query;
 
-        // Convert query parameters to numbers
-        const pageNumber = parseInt(page, 10);
+    //     // Convert query parameters to numbers
+    //     const pageNumber = parseInt(page, 10);
+    //     const pageSize = parseInt(limit, 10);
+
+    //     // Calculate date range based on period
+    //     const currentDate = new Date();
+    //     let startDate;
+
+    //     switch (period) {
+    //         case 'monthly':
+    //             startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    //             break;
+    //         case '3months':
+    //             startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+    //             break;
+    //         case '6months':
+    //             startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 6));
+    //             break;
+    //         default:
+    //             startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // Default to 3 months
+    //     }
+
+    //     // Fetch orders with pagination and date range filter
+    //     const orders = await Order.find({ createdAt: { $gte: startDate } })
+    //         .skip((pageNumber - 1) * pageSize)
+    //         .limit(pageSize)
+    //         .lean();
+
+    //     // Count total orders for pagination
+    //     const totalOrders = await Order.countDocuments({ createdAt: { $gte: startDate } });
+
+    //     // Process each order
+    //     const processedOrders = await Promise.all(orders.map(async (order) => {
+    //         // Process each product in the order
+    //         const processedProducts = await Promise.all(order.products.map(async (product) => {
+    //             // Fetch product details
+    //             const productDetails = await Product.findOne({ _id: product.product_id }).lean();
+    //             // Fetch product variant details
+    //             const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
+
+    //             // Check if productDetails and productVariantDetails exist
+    //             if (!productDetails) {
+    //                 console.error(`Product not found: ${product.product_id}`);
+    //                 return null; // or you can return a default object
+    //             }
+    //             if (!productVariantDetails) {
+    //                 console.error(`Product variant not found: ${product.product_variant_id}`);
+    //                 return null; // or you can return a default object
+    //             }
+
+    //             // Assemble the response format
+    //             return {
+    //                 product: {
+    //                     _id: productDetails._id,
+    //                     title: productDetails.title,
+    //                     description: productDetails.description,
+    //                     consume_type: productDetails.consume_type,
+    //                     return_policy: productDetails.return_policy,
+    //                     product_category_id: productDetails.product_category_id,
+    //                     brand_id: productDetails.brand_id,
+    //                     expiry_date: productDetails.expiry_date,
+    //                     manufacturing_date: productDetails.manufacturing_date,
+    //                     sideEffects: productDetails.sideEffects,
+    //                 },
+    //                 product_variant: {
+    //                     _id: productVariantDetails._id,
+    //                     productId: productVariantDetails.productId,
+    //                     discounted_id: productVariantDetails.discounted_id,
+    //                     size: productVariantDetails.size,
+    //                     color: productVariantDetails.color,
+    //                     price: productVariantDetails.price,
+    //                 },
+    //                 media_id: product.media_id,
+    //                 quantity: product.quantity,
+    //                 price: product.price,
+    //                 _id: product._id,
+    //             };
+    //         }));
+
+    //         // Filter out null products if any were not found
+    //         const validProducts = processedProducts.filter(product => product !== null);
+
+    //         return {
+    //             ...order,
+    //             products: validProducts,
+    //         };
+    //     }));
+
+    //     // Send the response with pagination info
+    //     res.send({
+    //         orders: processedOrders,
+    //         currentPage: pageNumber,
+    //         limit: pageSize,
+    //         totalItems: totalOrders,
+    //         totalPages: Math.ceil(totalOrders / pageSize),
+    //         error: false
+    //     });
+
+    // } catch (error) {
+    //     handleError(error.message, 400, res);
+    // }
+
+    try {
+        const {
+            q,
+            page = 1,
+            limit = 10,
+            sort = 1,
+            startDate,
+            endDate,
+            status,
+        } = req.query;
+
+        // Parse page and limit to integers
+        const currentPage = parseInt(page, 10);
         const pageSize = parseInt(limit, 10);
 
-        // Calculate date range based on period
-        const currentDate = new Date();
-        let startDate;
+        // Calculate skip for pagination
+        const skip = (currentPage - 1) * pageSize;
+        const sortOrder = sort === '1' ? 1 : -1;
 
-        switch (period) {
-            case 'monthly':
-                startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-                break;
-            case '3months':
-                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
-                break;
-            case '6months':
-                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 6));
-                break;
-            default:
-                startDate = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // Default to 3 months
+        // Initialize match condition for date range
+        const matchConditions = {};
+        if (startDate || endDate) {
+            matchConditions.createdAt = {};
+            if (startDate) {
+                matchConditions.createdAt.$gte = new Date(startDate); // Start date (inclusive)
+            }
+            if (endDate) {
+                matchConditions.createdAt.$lte = new Date(endDate); // End date (inclusive)
+            }
+
+        }
+        if (status) {
+            matchConditions.status = status; // Add status to match conditions
         }
 
-        // Fetch orders with pagination and date range filter
-        const orders = await Order.find({ createdAt: { $gte: startDate } })
-            .skip((pageNumber - 1) * pageSize)
-            .limit(pageSize)
-            .lean();
-
-        // Count total orders for pagination
-        const totalOrders = await Order.countDocuments({ createdAt: { $gte: startDate } });
-
-        // Process each order
-        const processedOrders = await Promise.all(orders.map(async (order) => {
-            // Process each product in the order
-            const processedProducts = await Promise.all(order.products.map(async (product) => {
-                // Fetch product details
-                const productDetails = await Product.findOne({ _id: product.product_id }).lean();
-                // Fetch product variant details
-                const productVariantDetails = await ProductVariant.findOne({ _id: product.product_variant_id, productId: product.product_id }).lean();
-
-                // Check if productDetails and productVariantDetails exist
-                if (!productDetails) {
-                    console.error(`Product not found: ${product.product_id}`);
-                    return null; // or you can return a default object
-                }
-                if (!productVariantDetails) {
-                    console.error(`Product variant not found: ${product.product_variant_id}`);
-                    return null; // or you can return a default object
-                }
-
-                // Assemble the response format
-                return {
-                    product: {
-                        _id: productDetails._id,
-                        title: productDetails.title,
-                        description: productDetails.description,
-                        consume_type: productDetails.consume_type,
-                        return_policy: productDetails.return_policy,
-                        product_category_id: productDetails.product_category_id,
-                        brand_id: productDetails.brand_id,
-                        expiry_date: productDetails.expiry_date,
-                        manufacturing_date: productDetails.manufacturing_date,
-                        sideEffects: productDetails.sideEffects,
+        // Pipeline for the aggregation
+        const pipeline = [
+            // Match orders within the specified date range
+            {
+                $match: {
+                    ...matchConditions,
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users', // Lookup user details
+                    localField: 'user_id',
+                    foreignField: '_id',
+                    as: 'user',
+                },
+            },
+            {
+                $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $lookup: {
+                    from: 'addressbooks', // Lookup address details
+                    localField: 'address_id',
+                    foreignField: '_id',
+                    as: 'address',
+                },
+            },
+            {
+                $unwind: { path: '$address', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $unwind: { path: '$products' }, // Unwind products to handle each product separately
+            },
+            {
+                $lookup: {
+                    from: 'products', // Lookup product details
+                    localField: 'products.product_id',
+                    foreignField: '_id',
+                    as: 'productDetails',
+                },
+            },
+            {
+                $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                // Lookup to get brand details
+                $lookup: {
+                    from: 'brands', // Assuming your brand collection is called 'brands'
+                    localField: 'productDetails.brand_id',
+                    foreignField: '_id',
+                    as: 'brandDetails',
+                },
+            },
+            {
+                $unwind: { path: '$brandDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                // Lookup to get product category details
+                $lookup: {
+                    from: 'productcategories', // Assuming your product category collection is called 'productcategories'
+                    localField: 'productDetails.product_category_id',
+                    foreignField: '_id',
+                    as: 'categoryDetails',
+                },
+            },
+            {
+                $unwind: { path: '$categoryDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $lookup: {
+                    from: 'variants', // Lookup variant details
+                    localField: 'products.product_variant_id',
+                    foreignField: '_id',
+                    as: 'variantDetails',
+                },
+            },
+            {
+                $unwind: { path: '$variantDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $group: {
+                    _id: '$_id', // Group by order id
+                    productDetails: {
+                        $push: {
+                            _id: '$productDetails._id',
+                            title: '$productDetails.title',
+                            sku: '$productDetails.sku',
+                            brand_name: '$brandDetails.name',  // Brand name
+                            category_name: '$categoryDetails.name', // Category name
+                            variantDetails: {
+                                _id: '$variantDetails._id',
+                                size: '$variantDetails.size',
+                                color: '$variantDetails.color',
+                                discount: '$variantDetails.discounted_id',
+                                price: '$products.price', // Use products.price for bought price
+                                quantity: '$products.quantity', // Use products.quantity for bought quantity 
+                            },
+                        },
                     },
-                    product_variant: {
-                        _id: productVariantDetails._id,
-                        productId: productVariantDetails.productId,
-                        discounted_id: productVariantDetails.discounted_id,
-                        size: productVariantDetails.size,
-                        color: productVariantDetails.color,
-                        price: productVariantDetails.price,
+                    user: {
+                        $first: {
+                            name: '$user.name',
+                            email: '$user.email',
+                        },
                     },
-                    media_id: product.media_id,
-                    quantity: product.quantity,
-                    price: product.price,
-                    _id: product._id,
-                };
-            }));
+                    address: {
+                        $first: {
+                            bill_to: '$address.bill_to',
+                            address: '$address.address',
+                            land_mark: '$address.land_mark',
+                            state: '$address.state',
+                            city: '$address.city',
+                            pincode: '$address.pincode',
+                            address_type: '$address.address_type',
+                        },
+                    },
+                    subTotal: { $first: '$total' }, // Include total if needed
+                    shippingCost: { $first: '$shippingCost' }, // Include total if needed
+                    total: { $first: '$total' }, // Include total if needed
+                    status: { $first: '$status' }, // Include status if needed
+                    createdAt: { $first: '$createdAt' }, // Include createdAt for sorting
+                    order_type: { $first: '$order_type' },
+                    user_wallet_id: { $first: '$user_wallet_id' },
+                    loyality_coins: { $first: '$loyality_coins' },
+                    prescription_url: { $first: '$prescription_url' },
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    productDetails: 1,
+                    user: 1,
+                    address: 1,
+                    total: 1,
+                    status: 1,
+                    subTotal: 1,
+                    order_type: 1,
+                    user_wallet_id: 1,
+                    loyality_coins: 1,
+                    prescription_url: 1,
+                    shippingCost: 1,
+                    createdAt: 1,
+                },
+            },
+            {
+                $sort: { createdAt: sortOrder }, // Sort by createdAt
+            },
+            {
+                $skip: skip, // Pagination skip
+            },
+            {
+                $limit: pageSize, // Pagination limit
+            },
+        ];
 
-            // Filter out null products if any were not found
-            const validProducts = processedProducts.filter(product => product !== null);
 
-            return {
-                ...order,
-                products: validProducts,
-            };
-        }));
+        // Execute the main pipeline to get the orders
+        const orders = await Order.aggregate(pipeline);
 
-        // Send the response with pagination info
-        res.send({
-            orders: processedOrders,
-            currentPage: pageNumber,
-            limit: pageSize,
-            totalItems: totalOrders,
-            totalPages: Math.ceil(totalOrders / pageSize),
-            error: false
+        const getTotalSale = orders.reduce(function (a, b) {
+            return a + b['total'];
+        }, 0);
+
+        // Count total matching orders (for pagination)
+        const totalCountPipeline = [
+            { $match: { ...matchConditions } },
+            { $count: 'totalCount' } // Count total orders matching the date filter
+        ];
+
+        const totalCountResult = await Order.aggregate(totalCountPipeline);
+        const totalItems = totalCountResult[0] ? totalCountResult[0].totalCount : 0;
+        const totalPages = Math.ceil(totalItems / pageSize); // Calculate total pages
+
+        res.status(200).send({
+            orders, // Actual order data
+            grandTotal: getTotalSale,// Total number of pages
+            currentPage: currentPage, // Current page
+            limit: pageSize, // Items per page
+            totalItems: totalItems, // Total number of items
+            totalPages: totalPages,
         });
-
     } catch (error) {
-        // Error handling
-
-        console.log('error>>>>>>>>>>>>', error);
-
-
-        handleError(error.message, 400, res);
+        console.log('Error in salesReport:', error);
+        return res.status(500).send({ message: 'Internal server error' });
     }
 };
 
@@ -721,39 +938,244 @@ exports.findAllUserOrders = async (req, res) => {
     }
 };
 
+
+
+
+
+
 // Get sales report for admin pannel
+/**
+     * * Step 1 ->  Get all products data and calculate all product varient price total. 
+     * Step 2 ->   Calculate all delivered order total 
+     * Step 3 ->   Get deference between all inventory calculate and order sales total
+     * Step 4 ->  
+     * 
+     * Expected result in below here
+     * 
+     * | Product tital | brand_name | category_name | variant size | variant qty | variant price | order_variant_price | order_varient_size | order_sale_variant_qty | order_status | order_date
+     * 
+     * ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * total , total sale              
+     * ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     * 
+     */
 exports.salesReport = async (req, res) => {
     try {
-        const { startDate: startDateParam, endDate: endDateParam } = req.query;
+        const {
+            q,
+            page = 1,
+            limit = 10,
+            sort = 1,
+            startDate,
+            endDate,
+            status,
+        } = req.query;
 
-        // Parse the dates from query parameters
-        const startDate = startDateParam
-        const endDate = endDateParam
+        // Parse page and limit to integers
+        const currentPage = parseInt(page, 10);
+        const pageSize = parseInt(limit, 10);
 
-        // // Validate date inputs
-        // if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        //     return res.status(400).send({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
-        // }
+        // Calculate skip for pagination
+        const skip = (currentPage - 1) * pageSize;
+        const sortOrder = sort === '1' ? 1 : -1;
 
-        // // Check if the start date is before the end date   
-        // if (startDate > endDate) {
-        //     return res.status(400).send({ error: 'Start date must be before end date.' });
-        // }
+        // Initialize match condition for date range
+        const matchConditions = {};
+        if (startDate || endDate) {
+            matchConditions.createdAt = {};
+            if (startDate) {
+                matchConditions.createdAt.$gte = new Date(startDate); // Start date (inclusive)
+            }
+            if (endDate) {
+                matchConditions.createdAt.$lte = new Date(endDate); // End date (inclusive)
+            }
 
-        // Fetch orders and transactions within the date range
+        }
+        if (status) {
+            matchConditions.status = status; // Add status to match conditions
+        }
 
-        const orders = await Order.find({ status: 'pending', order_type: 'COD', createdAt: { $gte: startDate, $lte: endDate } });
+        // Pipeline for the aggregation
+        const pipeline = [
+            // Match orders within the specified date range
+            {
+                $match: {
+                    ...matchConditions,
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users', // Lookup user details
+                    localField: 'user_id',
+                    foreignField: '_id',
+                    as: 'user',
+                },
+            },
+            {
+                $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $lookup: {
+                    from: 'addressbooks', // Lookup address details
+                    localField: 'address_id',
+                    foreignField: '_id',
+                    as: 'address',
+                },
+            },
+            {
+                $unwind: { path: '$address', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $unwind: { path: '$products' }, // Unwind products to handle each product separately
+            },
+            {
+                $lookup: {
+                    from: 'products', // Lookup product details
+                    localField: 'products.product_id',
+                    foreignField: '_id',
+                    as: 'productDetails',
+                },
+            },
+            {
+                $unwind: { path: '$productDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                // Lookup to get brand details
+                $lookup: {
+                    from: 'brands', // Assuming your brand collection is called 'brands'
+                    localField: 'productDetails.brand_id',
+                    foreignField: '_id',
+                    as: 'brandDetails',
+                },
+            },
+            {
+                $unwind: { path: '$brandDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                // Lookup to get product category details
+                $lookup: {
+                    from: 'productcategories', // Assuming your product category collection is called 'productcategories'
+                    localField: 'productDetails.product_category_id',
+                    foreignField: '_id',
+                    as: 'categoryDetails',
+                },
+            },
+            {
+                $unwind: { path: '$categoryDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $lookup: {
+                    from: 'variants', // Lookup variant details
+                    localField: 'products.product_variant_id',
+                    foreignField: '_id',
+                    as: 'variantDetails',
+                },
+            },
+            {
+                $unwind: { path: '$variantDetails', preserveNullAndEmptyArrays: true },
+            },
+            {
+                $group: {
+                    _id: '$_id', // Group by order id
+                    productDetails: {
+                        $push: {
+                            _id: '$productDetails._id',
+                            title: '$productDetails.title',
+                            sku: '$productDetails.sku',
+                            brand_name: '$brandDetails.name',  // Brand name
+                            category_name: '$categoryDetails.name', // Category name
+                            variantDetails: {
+                                _id: '$variantDetails._id',
+                                size: '$variantDetails.size',
+                                color: '$variantDetails.color',
+                                discount: '$variantDetails.discounted_id',
+                                price: '$products.price', // Use products.price for bought price
+                                quantity: '$products.quantity', // Use products.quantity for quantity bought
+                            },
+                        },
+                    },
+                    user: {
+                        $first: {
+                            name: '$user.name',
+                            email: '$user.email',
+                        },
+                    },
+                    address: {
+                        $first: {
+                            bill_to: '$address.bill_to',
+                            address: '$address.address',
+                            land_mark: '$address.land_mark',
+                            state: '$address.state',
+                            city: '$address.city',
+                            pincode: '$address.pincode',
+                            address_type: '$address.address_type',
+                        },
+                    },
+                    subTotal: { $first: '$total' }, // Include total if needed
+                    shippingCost: { $first: '$shippingCost' }, // Include total if needed
+                    total: { $first: '$total' }, // Include total if needed
+                    status: { $first: '$status' }, // Include status if needed
+                    createdAt: { $first: '$createdAt' }, // Include createdAt for sorting
+                    order_type: { $first: '$order_type' },
+                    user_wallet_id: { $first: '$user_wallet_id' },
+                    loyality_coins: { $first: '$loyality_coins' },
+                    prescription_url: { $first: '$prescription_url' },
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    productDetails: 1,
+                    user: 1,
+                    address: 1,
+                    total: 1,
+                    status: 1,
+                    subTotal: 1,
+                    order_type: 1,
+                    user_wallet_id: 1,
+                    loyality_coins: 1,
+                    prescription_url: 1,
+                    shippingCost: 1,
+                    createdAt: 1,
+                },
+            },
+            {
+                $sort: { createdAt: sortOrder }, // Sort by createdAt
+            },
+            {
+                $skip: skip, // Pagination skip
+            },
+            {
+                $limit: pageSize, // Pagination limit
+            },
+        ];
 
 
-        console.log('orders', orders);
+        // Execute the main pipeline to get the orders
+        const orders = await Order.aggregate(pipeline);
 
+        const getTotalSale = orders.reduce(function (a, b) {
+            return a + b['total'];
+        }, 0);
 
+        // Count total matching orders (for pagination)
+        const totalCountPipeline = [
+            { $match: { ...matchConditions } },
+            { $count: 'totalCount' } // Count total orders matching the date filter
+        ];
 
-        const transactions = await Transaction.find({ status: 'created', createdAt: { $gte: startDate, $lte: endDate } }, { paid_amount: 1, createdAt: 1 });
+        const totalCountResult = await Order.aggregate(totalCountPipeline);
+        const totalItems = totalCountResult[0] ? totalCountResult[0].totalCount : 0;
+        const totalPages = Math.ceil(totalItems / pageSize); // Calculate total pages
 
-
-
-        res.status(200).send(orders);
+        res.status(200).send({
+            orders, // Actual order data
+            grandTotal: getTotalSale,// Total number of pages
+            currentPage: currentPage, // Current page
+            limit: pageSize, // Items per page
+            totalItems: totalItems, // Total number of items
+            totalPages: totalPages,
+        });
     } catch (error) {
         console.log('Error in salesReport:', error);
         return res.status(500).send({ message: 'Internal server error' });

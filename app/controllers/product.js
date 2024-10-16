@@ -1069,8 +1069,6 @@ exports.getAllDeletedProducts = async (req, res) => {
 
 exports.createBulkProducts = async (req, res) => {
     try {
-        console.log('v<<', req.file);
-
         if (!req.file) {
             return res.status(400).send({ message: 'No file uploaded.', error: true });
         }
