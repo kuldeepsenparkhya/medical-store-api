@@ -67,9 +67,10 @@ exports.create = async (req, res) => {
                 return;
             }
             const getCoin = await Coin.findOne({})
+
             loyalityCoins = userWallet.coins
 
-            const getOneCoinValue = getCoin.coins_amount / getCoin.coins
+            const getOneCoinValue = getCoin.coins / getCoin.coins_amount
             getCoinAmountValue = userWallet.coins / getOneCoinValue
             await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true })
         }
@@ -140,8 +141,6 @@ exports.create = async (req, res) => {
         // No discount applied
         // grandTotal = totalBeforeDiscount;
         // }
-
-
 
         grandTotal = totalBeforeDiscount;
         // Subtract coin amount value
@@ -940,9 +939,6 @@ exports.findAllUserOrders = async (req, res) => {
 
 
 
-
-
-
 // Get sales report for admin pannel
 /**
      * * Step 1 ->  Get all products data and calculate all product varient price total. 
@@ -952,24 +948,17 @@ exports.findAllUserOrders = async (req, res) => {
      * 
      * Expected result in below here
      * 
-     * | Product tital | brand_name | category_name | variant size | variant qty | variant price | order_variant_price | order_varient_size | order_sale_variant_qty | order_status | order_date
+     * | Product tital | brand_name | category_name | variant price | order_variant_price | order_varient_size | order_sale_variant_qty | order_status | order_date
      * 
      * ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
      * total , total sale              
      * ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
      * 
      */
+
 exports.salesReport = async (req, res) => {
     try {
-        const {
-            q,
-            page = 1,
-            limit = 10,
-            sort = 1,
-            startDate,
-            endDate,
-            status,
-        } = req.query;
+        const { page = 1, limit = 100, sort = 1, startDate, endDate, status } = req.query;
 
         // Parse page and limit to integers
         const currentPage = parseInt(page, 10);
@@ -984,16 +973,20 @@ exports.salesReport = async (req, res) => {
         if (startDate || endDate) {
             matchConditions.createdAt = {};
             if (startDate) {
-                matchConditions.createdAt.$gte = new Date(startDate); // Start date (inclusive)
+                // Convert startDate to UTC at 00:00 UTC
+                matchConditions.createdAt.$gte = new Date(new Date(startDate).setUTCHours(0, 0, 0, 0));
             }
             if (endDate) {
-                matchConditions.createdAt.$lte = new Date(endDate); // End date (inclusive)
+                // Convert endDate to UTC at 23:59 UTC
+                matchConditions.createdAt.$lte = new Date(new Date(endDate).setUTCHours(23, 59, 59, 999));
             }
-
         }
         if (status) {
             matchConditions.status = status; // Add status to match conditions
         }
+
+        // Log match conditions for debugging
+        console.log("Match Conditions: ", matchConditions);
 
         // Pipeline for the aggregation
         const pipeline = [
@@ -1075,6 +1068,7 @@ exports.salesReport = async (req, res) => {
                 $unwind: { path: '$variantDetails', preserveNullAndEmptyArrays: true },
             },
             {
+                // Group by order id and gather order details
                 $group: {
                     _id: '$_id', // Group by order id
                     productDetails: {
@@ -1111,15 +1105,11 @@ exports.salesReport = async (req, res) => {
                             address_type: '$address.address_type',
                         },
                     },
-                    subTotal: { $first: '$total' }, // Include total if needed
-                    shippingCost: { $first: '$shippingCost' }, // Include total if needed
                     total: { $first: '$total' }, // Include total if needed
-                    status: { $first: '$status' }, // Include status if needed
                     createdAt: { $first: '$createdAt' }, // Include createdAt for sorting
                     order_type: { $first: '$order_type' },
                     user_wallet_id: { $first: '$user_wallet_id' },
                     loyality_coins: { $first: '$loyality_coins' },
-                    prescription_url: { $first: '$prescription_url' },
                 },
             },
             {
@@ -1129,34 +1119,71 @@ exports.salesReport = async (req, res) => {
                     user: 1,
                     address: 1,
                     total: 1,
-                    status: 1,
-                    subTotal: 1,
+                    createdAt: 1,
                     order_type: 1,
                     user_wallet_id: 1,
                     loyality_coins: 1,
-                    prescription_url: 1,
-                    shippingCost: 1,
-                    createdAt: 1,
                 },
             },
             {
-                $sort: { createdAt: sortOrder }, // Sort by createdAt
+                $sort: { createdAt: sortOrder }, // Sort by createdAt before pagination
             },
             {
-                $skip: skip, // Pagination skip
+                $skip: skip, // Apply pagination skip
             },
             {
-                $limit: pageSize, // Pagination limit
+                $limit: pageSize, // Apply pagination limit
             },
         ];
-
 
         // Execute the main pipeline to get the orders
         const orders = await Order.aggregate(pipeline);
 
-        const getTotalSale = orders.reduce(function (a, b) {
-            return a + b['total'];
-        }, 0);
+        // Initialize daily sales report
+        let dailySalesReport = [];
+
+        // If there are orders, proceed to calculate daily sales
+        if (orders.length > 0) {
+            const salesMap = {};
+
+            orders.forEach(order => {
+                const orderDate = order.createdAt.toISOString().split('T')[0]; // Extract the date
+                if (!salesMap[orderDate]) {
+                    salesMap[orderDate] = {
+                        totalOrders: 0,
+                        totalRevenue: 0,
+                    };
+                }
+                salesMap[orderDate].totalOrders += 1;
+                salesMap[orderDate].totalRevenue += order.total; // Aggregate revenue
+            });
+
+            dailySalesReport = Object.keys(salesMap).map(date => ({
+                _id: date,
+                totalOrders: salesMap[date].totalOrders,
+                totalRevenue: salesMap[date].totalRevenue,
+            }));
+
+            dailySalesReport.sort((a, b) => new Date(a._id) - new Date(b._id));
+        }
+
+        // Calculate grand total revenue across all orders for the specified date range
+        const grandTotalPipeline = [
+            {
+                $match: {
+                    ...matchConditions,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    grandTotal: { $sum: "$total" }, // Sum total from all matching orders
+                },
+            },
+        ];
+
+        const grandTotalResult = await Order.aggregate(grandTotalPipeline);
+        const grandTotal = grandTotalResult[0] ? grandTotalResult[0].grandTotal : 0;
 
         // Count total matching orders (for pagination)
         const totalCountPipeline = [
@@ -1170,7 +1197,8 @@ exports.salesReport = async (req, res) => {
 
         res.status(200).send({
             orders, // Actual order data
-            grandTotal: getTotalSale,// Total number of pages
+            dailySalesReport, // Daily sales report
+            grandTotal, // Grand total revenue
             currentPage: currentPage, // Current page
             limit: pageSize, // Items per page
             totalItems: totalItems, // Total number of items
@@ -1184,7 +1212,6 @@ exports.salesReport = async (req, res) => {
 
 
 
-// Pendig for payment gateway
 exports.checkout = async (req, res) => {
     var razorPayIinstance = new Razorpay({
         key_id: 'rzp_test_GcZZFDPP0jHtC4',
