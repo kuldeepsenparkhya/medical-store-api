@@ -596,6 +596,7 @@ exports.getAllProducts = async (req, res) => {
                     $or: [
                         { 'brand.name': { $regex: new RegExp(q, 'i') } },
                         { title: { $regex: new RegExp(q, 'i') } },
+                        { sku: { $regex: new RegExp(q, 'i') } },
                         { description: { $regex: new RegExp(q, 'i') } },
                         { 'productCategory.name': { $regex: new RegExp(q, 'i') } },
                         { 'healthCategory.name': { $regex: new RegExp(q, 'i') } },

@@ -13,7 +13,9 @@ const productSchema = Schema({
   sku: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true, 
+    set: (val) => val.toUpperCase(), // Converts name to uppercase before saving
   },
   consume_type: {
     type: String,

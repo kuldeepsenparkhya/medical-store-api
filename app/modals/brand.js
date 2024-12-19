@@ -5,7 +5,9 @@ const brandSchema = Schema({
   name: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true, 
+    set: (val) => val.toLowerCase(), // Converts name to lowercase before saving
   },
   description: {
     type: String,
