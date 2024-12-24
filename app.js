@@ -15,7 +15,7 @@ const { reminderOrder } = require('./app/controllers/reminder');
 const { User } = require('./app/modals');
 const { sendMailer, remindeEmail, sendRemindMailer } = require('./app/utils/helper');
 
-// const HOST = '192.168.0.23';
+// const HOST = '192.168.0.118';
 // Initialize Passport
 
 require('./app/config/passport-setup'); // Ensure this is required to initialize Passport
