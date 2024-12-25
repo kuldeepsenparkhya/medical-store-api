@@ -84,7 +84,6 @@ exports.createUUID = () => {
 exports.sendNotification = (subscription, payload) => {
     webpush.sendNotification(subscription, payload).catch(err => console.error(err));
 }
-
 exports.newGenerateInvoice = (invoiceData, res) => {
     return new Promise((resolve, reject) => {
         const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');

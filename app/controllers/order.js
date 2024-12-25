@@ -4,67 +4,37 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
-const {
-  handleError,
-  handleResponse,
-  generateInvoice,
-  sendMailer,
-  orderConfirmationMail,
-  orderNotifiationEmail,
-  newGenerateInvoice,
-} = require("../utils/helper");
-const {
-  Order,
-  Product,
-  ProductVariant,
-  User,
-  AddressBook,
-  Inventory,
-  Transaction,
-  Offer,
-  Discount,
-  UserWallet,
-  Coin,
-} = require("../modals");
+const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail, newGenerateInvoice } = require("../utils/helper");
+const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require("../modals");
+
 const { isValidObjectId, default: mongoose } = require("mongoose");
 
 // Place order
 exports.create = async (req, res) => {
   try {
-    const {
-      products,
-      address_id,
-      shipping_charge,
-      order_type,
-      user_wallet_id,
-    } = req.body;
-    const { error } = orderVailidationSchema.validate(req.body, {
-      abortEarly: false,
-    });
+    const { products, address_id, shipping_charge, order_type, user_wallet_id, } = req.body;
+
+    const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false, });
     if (error) {
       handleError(error, 400, res);
       return;
     }
 
-    let prescription_url = req.file
-      ? `${process.env.BASE_URL}/media/${req?.file?.filename}`
-      : "";
+    let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : "";
     const requirePrescription = [];
+
     // const comboDiscountProducts = []
     //-------------------------------- Check prescription require products --------------------------------
-    await Promise.all(
-      products.map(async (item) => {
-        if (!req.file) {
-          const getNeededPrescriptions = await Product.findOne({
-            _id: item.product_id,
-            isRequirePrescription: true,
-          });
 
-          if (getNeededPrescriptions) {
-            requirePrescription.push(getNeededPrescriptions.title);
-          }
+    await Promise.all(products.map(async (item) => {
+      if (!req.file) {
+        const getNeededPrescriptions = await Product.findOne({ _id: item.product_id, isRequirePrescription: true, });
+
+        if (getNeededPrescriptions) {
+          requirePrescription.push(getNeededPrescriptions.title);
         }
-      })
+      }
+    })
     );
 
     if (requirePrescription.length > 0) {
@@ -106,11 +76,7 @@ exports.create = async (req, res) => {
 
       const getOneCoinValue = getCoin.coins / getCoin.coins_amount;
       getCoinAmountValue = userWallet.coins / getOneCoinValue;
-      await UserWallet.updateOne(
-        { _id: user_wallet_id },
-        { coins: 0 },
-        { new: true }
-      );
+      await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
     }
 
     // const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
@@ -120,13 +86,9 @@ exports.create = async (req, res) => {
 
     await Promise.all(
       products.map(async (item) => {
-        const inventory = await Inventory.findOne({
-          product_id: item.product_id,
-          product_variant_id: item.product_variant_id,
-        });
+        const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
 
-        dueQuantity =
-          inventory?.total_variant_quantity - inventory?.sale_variant_quantity;
+        dueQuantity = inventory?.total_variant_quantity - inventory?.sale_variant_quantity;
 
         if (dueQuantity < item.quantity) {
           outOfStockVariants.push({
@@ -148,47 +110,115 @@ exports.create = async (req, res) => {
     }
 
     // Order
-    const newData = await Promise.all(
-      products.map(async (item, i) => {
-        if (item?.discount_id !== null && item.discount_id === undefined) {
-          const discount = await Discount.findOne({ _id: item?.discount_id });
-          item.total =
-            discount?.discount_type === "perc"
-              ? Number(item?.quantity) *
-                Number(item.price) *
-                (1 - discount?.discount / 100)
-              : Number(item.quantity) * Number(item.price) - discount?.discount;
-          return item;
-        } else {
-          item.total = Number(item.quantity) * Number(item.price);
-          return item;
-        }
-      })
-    );
+    // const newData = await Promise.all(products.map(async (item, i) => {
+    //   console.log('item<<<<<<<<', item);
+    //   const price = parseFloat(item.price); // Convert price to number
+    //   const quantity = parseInt(item.quantity, 10); // Convert quantity to integer
 
+    //   // Validate price and quantity
+    //   if (isNaN(price) || isNaN(quantity)) {
+    //     console.error('Invalid price or quantity:', item); // Log invalid data
+    //     item.total = 0; // Set total to 0 if data is invalid
+    //   } else {
+    //     if (item?.discount_id !== null && item.discount_id === undefined) {
+    //       const discount = await Discount.findOne({ _id: item?.discount_id });
+    //       item.total = discount?.discount_type === "perc" ? quantity * price * (1 - discount?.discount / 100) : quantity * price - discount?.discount;
+    //     } else {
+    //       item.total = quantity * price;
+    //     }
+    //   }
+
+    //   console.log('item.total>>>>>>>>>', item.total);
+
+    //   return item;
+    // }));
+
+    // let subTotal = 0;
+
+    // newData.forEach((item) => {
+    //   // Only add to subtotal if item.total is a valid number
+    //   if (!isNaN(item.total)) {
+    //     subTotal += item.total;
+    //   } else {
+    //     console.error('Invalid total for item:', item); // Log items with invalid total
+    //   }
+    // });
+
+    // Order processing with asynchronous calculation for each product
+   
+   
+    const newData = await Promise.all(products.map(async (item, i) => {
+      // Convert price and quantity to numbers
+      const price = parseFloat(item.price); // Convert price to a float
+      const quantity = parseInt(item.quantity, 10); // Convert quantity to an integer
+
+      // Validate price and quantity
+      if (isNaN(price) || isNaN(quantity)) {
+        item.total = 0; // Set total to 0 if data is invalid
+      } else {
+        // If discount_id is present
+        if (item?.discount_id && item?.discount_id !== 'null' && item?.discount_id !== undefined) {
+          // Fetch the discount from the database
+          const discount = await Discount.findOne({ _id: item.discount_id });
+
+          // Apply discount logic
+          if (discount) {
+            // If discount type is percentage
+            if (discount?.discount_type === "perc") {
+              item.total = quantity * price * (1 - discount?.discount / 100);
+            } else {
+              // Apply fixed discount
+              item.total = quantity * price - discount?.discount;
+            }
+          } else {
+            // If no discount is found, calculate total without discount
+            item.total = quantity * price;
+          }
+        } else {
+          // No discount case, calculate total normally
+          item.total = quantity * price;
+        }
+      }
+
+      return item; // Return the updated item with total
+    }));
+
+    // After processing all products, calculate subTotal
     let subTotal = 0;
+    console.log('newData>>>>', newData);
+
+    // Sum up the totals for all valid products
     newData.forEach((item) => {
-      subTotal += item.total;
+      if (!isNaN(item.total)) {
+        subTotal += item.total; // Add the total if it's a valid number
+      } else {
+        console.error('Invalid total for item:', item); // Log invalid total
+      }
     });
 
     let grandTotal;
     // Calculate initial total including subtotal and shipping charge
     const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
 
-    // Check if couponDiscount exists and is valid
-    // if (couponDiscount?.discount_type) {
-    //     if (couponDiscount.discount_type === 'perc') {
-    //         // Apply percentage discount
-    //         grandTotal = totalBeforeDiscount * (1 - couponDiscount.discount / 100);
-    //     }
-    //      else {
-    //         // Apply fixed discount
-    //         grandTotal = totalBeforeDiscount - couponDiscount.discount;
-    //     }
-    // } else {
-    // No discount applied
-    // grandTotal = totalBeforeDiscount;
-    // }
+    /**
+     * 
+     * Check if couponDiscount exists and is valid
+        if (couponDiscount?.discount_type) {
+            if (couponDiscount.discount_type === 'perc') {
+                // Apply percentage discount
+                grandTotal = totalBeforeDiscount * (1 - couponDiscount.discount / 100);
+            }
+             else {
+                // Apply fixed discount
+                grandTotal = totalBeforeDiscount - couponDiscount.discount;
+            }
+        } else {
+        No discount applied
+        grandTotal = totalBeforeDiscount;
+        }
+    
+     */
+
 
     grandTotal = totalBeforeDiscount;
     // Subtract coin amount value
@@ -227,82 +257,47 @@ exports.create = async (req, res) => {
 
     const getCoins = await UserWallet.findOne({ user_id: req.user._id });
 
-    await UserWallet.updateOne(
-      { user_id: req.user._id },
-      { coins: getCoins.coins + assignedCoins },
-      { new: true }
-    );
+    await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
 
     await newOrder.save();
 
-    const orderItems = await Promise.all(
-      products.map(async (item) => {
-        const product = await Product.findOne({ _id: item.product_id });
-        const variant = await ProductVariant.findOne({
-          _id: item.product_variant_id,
-          productId: item.product_id,
-        });
+    const orderItems = await Promise.all(products.map(async (item) => {
+      const product = await Product.findOne({ _id: item.product_id });
+      const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
 
-        product._doc.variant = variant;
+      product._doc.variant = variant;
 
-        const getInventory = await Inventory.findOne({
-          product_id: item.product_id,
-          product_variant_id: item.product_variant_id,
-        });
+      const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
 
-        // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
-        const currentSaleQty = getInventory?.sale_variant_quantity || 0;
-        const saleQty = Number(currentSaleQty) + Number(item.quantity);
+      // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+      const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+      const saleQty = Number(currentSaleQty) + Number(item.quantity);
 
-        // Ensure saleQty is a valid number
-        if (isNaN(saleQty)) {
-          throw new Error("Invalid quantity value");
-        }
+      // Ensure saleQty is a valid number
+      if (isNaN(saleQty)) {
+        throw new Error("Invalid quantity value");
+      }
 
-        await Inventory.updateOne(
-          {
-            product_id: item.product_id,
-            product_variant_id: item.product_variant_id,
-          },
-          { sale_variant_quantity: saleQty },
-          { new: true }
-        );
+      await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
 
-        const getUpdateInventorydata = await Inventory.findOne({
-          product_id: item.product_id,
-          product_variant_id: item.product_variant_id,
-        });
+      const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
 
-        // Check product variant availability in inventory and product list
-        if (
-          variant?.quantity === getUpdateInventorydata?.sale_variant_quantity
-        ) {
-          await ProductVariant.updateOne(
-            { productId: item.product_id, _id: item.product_variant_id },
-            { inStock: false },
-            { new: true }
-          );
-        }
+      // Check product variant availability in inventory and product list
+      if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+        await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
+      }
 
-        return {
-          itemName: product.title,
-          quantity: item.quantity,
-          price: item.price,
-        };
-      })
+      return {
+        itemName: product.title,
+        quantity: item.quantity,
+        price: item.price,
+      };
+    })
     );
 
     const subject = "Thank You for Your Purchase!";
 
-    const message = orderConfirmationMail(
-      req.user.name,
-      newOrder._id,
-      orderItems,
-      subTotal,
-      shipping_charge,
-      grandTotal,
-      order_type
-    );
+    const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
 
     sendMailer(req.user.email, subject, message, res);
 
@@ -336,12 +331,7 @@ exports.create = async (req, res) => {
       await transaction.save();
     }
 
-    handleResponse(
-      res,
-      newOrder._doc,
-      "Order has been successfully placed.",
-      201
-    );
+    handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
   } catch (error) {
     console.log("error>>>>>>>", error);
     handleError(error.message, 400, res);
@@ -1374,9 +1364,6 @@ exports.getAllPayments = async (req, res) => {
 exports.downloadInvoice = async (req, res) => {
   try {
     const { orderID } = req.params;
-
-    console.log("orderID>?????????", orderID);
-
     const order = await Order.findOne({ _id: orderID, userID: req.user?.id });
     if (!order) {
       return res.status(404).send("Order not found");
