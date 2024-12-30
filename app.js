@@ -15,7 +15,7 @@ const { reminderOrder } = require('./app/controllers/reminder');
 const { User } = require('./app/modals');
 const { sendMailer, remindeEmail, sendRemindMailer } = require('./app/utils/helper');
 
-// const HOST = '192.168.0.118';
+const HOST = '192.168.0.118';
 // Initialize Passport
 
 require('./app/config/passport-setup'); // Ensure this is required to initialize Passport
@@ -36,7 +36,7 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001", 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
+    origin: ["http://localhost:3000", "http://localhost:3001",'http://18.233.85.48:8080/api', 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
     credentials: true
 }));
@@ -115,6 +115,6 @@ app.get('*', (req, res) => {
     });
 });
 
-// app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
-app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
+app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
+// app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
 
