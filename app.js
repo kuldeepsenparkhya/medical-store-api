@@ -36,7 +36,7 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001",'http://18.233.85.48','http://18.233.85.48:3000', 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
+    origin: ["http://localhost:3000", "http://localhost:3001", 'http://welljanhitchemist.com', 'http://admin.welljanhitchemist.com/', 'https://welljanhitchemist.com', 'https://admin.welljanhitchemist.com', 'http://18.233.85.48', 'http://18.233.85.48:3000', 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
     credentials: true
 }));
