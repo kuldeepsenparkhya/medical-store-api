@@ -20,7 +20,7 @@ exports.create = async (req, res) => {
             }
         }
 
-        const file = req?.file ? `${process.env.BASE_URL}/media/${path.basename(req.filePath)}` : ''
+        const file = req?.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : ''
         const data = { name, discount, discount_type, status, discount_offer_type, discount_img: file }
 
         const newDiscount = new Discount(data);
@@ -39,7 +39,7 @@ exports.create = async (req, res) => {
             }));
         }
         else {
-            if (products.length > 0) {
+            if (products?.length > 0) {
                 Promise.all(products.map(async (item) => {
                     const variants = await ProductVariant.find({ _id: item.variantId, productId: item.productId })
                     variants.map(async (val) => await ProductVariant.updateOne({ _id: val._id, productId: val.productId }, { discounted_id: newDiscount._id }, { new: true }))
