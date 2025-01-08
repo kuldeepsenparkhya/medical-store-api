@@ -44,6 +44,7 @@ exports.create = async (req, res) => {
       });
       return;
     }
+
     //-------------------------------- Check address is exist or not --------------------------------
     const address = await AddressBook.findOne({ _id: address_id });
     if (!address) {
@@ -62,6 +63,7 @@ exports.create = async (req, res) => {
     //-------------------------------- Handle user wallet coins and apply or not --------------------------------
     let getCoinAmountValue = 0;
     let loyalityCoins = 0;
+
     if (user_wallet_id && user_wallet_id !== "null") {
       // Check for null and string "null"
       const userWallet = await UserWallet.findOne({ _id: user_wallet_id });
@@ -145,17 +147,21 @@ exports.create = async (req, res) => {
     // });
 
     // Order processing with asynchronous calculation for each product
-   
-   
+
+
     const newData = await Promise.all(products.map(async (item, i) => {
       // Convert price and quantity to numbers
-      const price = parseFloat(item.price); // Convert price to a float
+
+      const productVarientPrice = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, })
+
+      const price = parseFloat(productVarientPrice?.price); // Convert price to a float
       const quantity = parseInt(item.quantity, 10); // Convert quantity to an integer
 
       // Validate price and quantity
       if (isNaN(price) || isNaN(quantity)) {
         item.total = 0; // Set total to 0 if data is invalid
-      } else {
+      }
+      else {
         // If discount_id is present
         if (item?.discount_id && item?.discount_id !== 'null' && item?.discount_id !== undefined) {
           // Fetch the discount from the database
@@ -166,17 +172,24 @@ exports.create = async (req, res) => {
             // If discount type is percentage
             if (discount?.discount_type === "perc") {
               item.total = quantity * price * (1 - discount?.discount / 100);
+              item.price = price
+
             } else {
               // Apply fixed discount
               item.total = quantity * price - discount?.discount;
+              item.price = price
+
             }
           } else {
             // If no discount is found, calculate total without discount
             item.total = quantity * price;
+            item.price = price
+
           }
         } else {
           // No discount case, calculate total normally
           item.total = quantity * price;
+          item.price = price
         }
       }
 
@@ -185,7 +198,6 @@ exports.create = async (req, res) => {
 
     // After processing all products, calculate subTotal
     let subTotal = 0;
-    console.log('newData>>>>', newData);
 
     // Sum up the totals for all valid products
     newData.forEach((item) => {
@@ -200,24 +212,7 @@ exports.create = async (req, res) => {
     // Calculate initial total including subtotal and shipping charge
     const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
 
-    /**
-     * 
-     * Check if couponDiscount exists and is valid
-        if (couponDiscount?.discount_type) {
-            if (couponDiscount.discount_type === 'perc') {
-                // Apply percentage discount
-                grandTotal = totalBeforeDiscount * (1 - couponDiscount.discount / 100);
-            }
-             else {
-                // Apply fixed discount
-                grandTotal = totalBeforeDiscount - couponDiscount.discount;
-            }
-        } else {
-        No discount applied
-        grandTotal = totalBeforeDiscount;
-        }
-    
-     */
+
 
 
     grandTotal = totalBeforeDiscount;
@@ -240,6 +235,9 @@ exports.create = async (req, res) => {
     if (user_wallet_id && user_wallet_id !== "null" && user_wallet_id !== "") {
       data.user_wallet_id = user_wallet_id;
     }
+
+
+
 
     const newOrder = new Order(data);
 
@@ -290,7 +288,7 @@ exports.create = async (req, res) => {
       return {
         itemName: product.title,
         quantity: item.quantity,
-        price: item.price,
+        price: variant.price,
       };
     })
     );
