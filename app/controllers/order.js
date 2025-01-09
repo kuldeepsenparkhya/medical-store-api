@@ -199,6 +199,11 @@ exports.create = async (req, res) => {
     // After processing all products, calculate subTotal
     let subTotal = 0;
 
+
+    console.log('Befor subTotal NewData >>>>', newData);
+
+
+
     // Sum up the totals for all valid products
     newData.forEach((item) => {
       if (!isNaN(item.total)) {
@@ -218,6 +223,13 @@ exports.create = async (req, res) => {
     grandTotal = totalBeforeDiscount;
     // Subtract coin amount value
     grandTotal -= getCoinAmountValue;
+
+
+    console.log('grandTotal>>>>', grandTotal);
+
+    console.log('newData>>>>', newData);
+
+
 
     const data = {
       products: newData,

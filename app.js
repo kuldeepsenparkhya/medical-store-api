@@ -22,7 +22,6 @@ require('./app/config/passport-setup'); // Ensure this is required to initialize
 
 const app = express();
 
-app.set('view engine', 'ejs');
 
 app.use(session({
     resave: false,
@@ -33,7 +32,6 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors({
     origin: ["http://localhost:3000", "http://localhost:3001", 'http://welljanhitchemist.com', 'https://welljanhitchemist.com', 'https://admin.welljanhitchemist.com', 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
@@ -44,6 +42,22 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('tiny'));
+
+
+
+
+
+
+// Root route
+app.get('/', (req, res) => {
+    try {
+        res.redirect('https://welljanhitchemist.com');
+    } catch (error) {
+        console.log(error);
+    }
+});
+
+
 
 // Route setup
 require('./app/routes/auth/googleAuth')(app);
@@ -81,6 +95,7 @@ require('./app/routes/coin')(app);
 require('./app/routes/vollet')(app);
 
 
+
 // Creating a cron job which runs every hour
 cron.schedule("0 * * * *", async function () {
     // Creating a cron job which runs every 5 seconds
@@ -108,12 +123,14 @@ cron.schedule("0 * * * *", async function () {
     }
 });
 
-app.get('*', (req, res) => {
-    res.status(400).send({
-        message: 'Hunn smart!',
-        error: true,
-    });
+
+// Global error handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something went wrong!');
 });
+
+
 
 // app.listen(PORT, HOST, () => { console.log(`Server is running port on http://${HOST}:${PORT}`); });
 app.listen(PORT, () => { console.log(`Server is running port on http://localhost:${PORT}`); });
