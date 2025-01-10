@@ -269,10 +269,12 @@ exports.create = async (req, res) => {
 
     // Total points in the user's wallet
     const totalPoints = userWallet?.coins || 0;  // Default to 0 if no points
+    
+    console.log(`userWallet coins: ${userWallet?.coins}, valuePerPoint: ${valuePerPoint}`);
 
     // Calculate the total rupees
     getCoinAmountValue = totalPoints * valuePerPoint;
-    console.log(`Total rupees: ${getCoinAmountValue}`);
+
 
     // Reset user wallet coins after using them
     await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
@@ -369,7 +371,7 @@ exports.create = async (req, res) => {
 
     // Subtract the loyalty coin amount from the grand total if valid
 
-    console.log('getCoinAmountValue>>>>', { grandTotal, getCoinAmountValue });
+    console.log(`getCoinAmountValue: ${getCoinAmountValue}, grandTotal: ${grandTotal}`);
 
     grandTotal = grandTotal - getCoinAmountValue;
     console.log('grandTotal>>>>', grandTotal);
