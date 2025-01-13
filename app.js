@@ -33,6 +33,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
+
+
 app.use(cors({
     origin: ["http://localhost:3000", "http://localhost:3001", 'http://welljanhitchemist.com', 'https://welljanhitchemist.com', 'https://admin.welljanhitchemist.com', 'https://janhit-chemist.netlify.app', 'https://janhit-chamist-admin.netlify.app'],
     methods: ["GET", "POST", "HEAD", "PUT", "PATCH", "DELETE"],
@@ -43,7 +45,7 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('tiny'));
 
-
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 

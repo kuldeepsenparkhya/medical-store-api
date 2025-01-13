@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+       body {
+        font-family: Arial, sans-serif;
+        margin: 50px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center; /* This aligns both the logo and heading vertically */
+        margin-bottom: 30px;
+      }
+
+      .logo {
+        width: 120px; /* Adjusted logo size */
+        height: 30px; /* Maintain the aspect ratio */
+      }
+
+      .invoice-header div {
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* Ensures heading is centered vertically */
+        margin-left: 20px; /* Add space between logo and heading */
+      }
+
+      .invoice-details {
+        margin-bottom: 20px;
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+
+      .table,
+      .table th,
+      .table td {
+        border: 1px solid #000;
+      }
+
+      .table th,
+      .table td {
+        padding: 8px;
+        text-align: left;
+      }
+
+      .table th {
+        background-color: #f2f2f2;
+      }
+
+      .totals {
+        margin-top: 20px;
+      }
+
+      .totals div {
+        margin-bottom: 10px;
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-header">
+      <img class="logo" src="http://localhost:5400/Janhit.png" alt="Logo" />
+      <div>
+        <h1>Tax Invoice</h1>
+        <p>Generated on: {{invoiceDate}}</p>
+      </div>
+    </div>
+
+    <div class="invoice-details">
+      <p><strong>Invoice Number:</strong> {{invoiceNumber}}</p>
+      <p><strong>Customer Name:</strong> {{customerName}}</p>
+      <p><strong>Shipping Address:</strong> {{shippingAddress}}</p>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>SN</th>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Gross Amount</th>
+          <th>Discount</th>
+          <th>Taxable Value</th>
+          <th>Taxes</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each orderItems}}
+        <tr>
+          <td>{{this.sn}}</td>
+          <td>{{this.itemName}}</td>
+          <td>{{this.quantity}}</td>
+          <td>{{this.price}}</td>
+          <td>{{this.discount}}</td>
+          <td>{{this.taxableValue}}</td>
+          <td>{{this.tax}}</td>
+          <td>{{this.total}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div>Redeem Coin Discount: Rs.{{redeemCoinDiscount}}</div>
+      <div>Subtotal: Rs.{{subTotal}}</div>
+      <div>Shipping Charges: Rs.{{shippingCharge}}</div>
+      <div>Taxes: Rs.{{taxes}}</div>
+      <div><strong>Grand Total: Rs.{{grandTotal}}</strong></div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your purchase!</p>
+      <p>Terms & Conditions apply.</p>
+    </div>
+  </body>
+</html>

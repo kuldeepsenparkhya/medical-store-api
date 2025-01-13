@@ -4,11 +4,14 @@ const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path'); // Import the path module
+const puppeteer = require('puppeteer');
+const Handlebars = require('handlebars');
 
 
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
 const { Product } = require('../modals');
 const moment = require('moment');
+const { log } = require('console');
 
 
 exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({ ...data, error: false, message: message });
@@ -86,109 +89,339 @@ exports.sendNotification = (subscription, payload) => {
 }
 
 
-exports.newGenerateInvoice = (invoiceData, res) => {
-    return new Promise((resolve, reject) => {
-        const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
-        const doc = new PDFDocument();
+// exports.newGenerateInvoice = (invoiceData, res) => {
+//     return new Promise((resolve, reject) => {
+//         const formattedDate = moment(invoiceData.invoiceDate).format('MMM Do YY');
+//         const doc = new PDFDocument();
 
-        // Set headers for file download
+//         // Set headers for file download
+//         res.setHeader('Content-disposition', `attachment; filename=invoice_${invoiceData.orderId}.pdf`);
+//         res.setHeader('Content-type', 'application/pdf');
+
+//         // Pipe the PDF document directly to the response
+//         doc.pipe(res);
+
+//         // Add content to the PDF
+//         doc.fontSize(27).text('Invoice', { align: 'center' }).moveDown();
+
+//         // Add invoice details
+//         doc.fontSize(12)
+//             .text(`Invoice Date: ${formattedDate}`, 50, 100)
+//             .text(`Invoice Number: ${invoiceData.orderId}`, 50, 120)
+//             .moveDown();
+
+//         // Add customer information
+//         doc.fontSize(14).text('Customer Information:', 50, 150)
+//             .fontSize(12)
+//             .text(`Name: ${invoiceData.customerName}`, 50, 170)
+//             .text(`Email: ${invoiceData.customerEmail}`, 50, 190)
+//             .text(`Mobile: ${invoiceData.customerMobile}`, 50, 210)
+//             .text(`Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 230)
+//             .moveDown();
+
+//         // Add table headers for order details
+//         const startX = 50;
+//         const startY = 270;
+//         const columnWidths = {
+//             itemName: 250, // Increased width for better alignment
+//             quantity: 100,
+//             unitPrice: 100,
+//             total: 100,
+//         };
+
+//         doc.fontSize(14).text('Order Details:', startX, startY - 20);
+
+//         // Draw table headers
+//         doc.fontSize(12)
+//             .text('Item Name', startX, startY, { width: columnWidths.itemName, underline: true })
+//             .text('Quantity', startX + columnWidths.itemName, startY, { width: columnWidths.quantity, underline: true, align: 'center' })
+//             .text('Unit Price', startX + columnWidths.itemName + columnWidths.quantity, startY, { width: columnWidths.unitPrice, underline: true, align: 'right' })
+//             .text('Total', startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, startY, { width: columnWidths.total, underline: true, align: 'right' })
+//             .moveTo(startX, startY + 15)
+//             .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, startY + 15)
+//             .stroke();
+
+//         // Start Y position for product details
+//         let y = startY + 20;
+
+//         // Loop through order items and add them to the table
+//         invoiceData?.orderItems?.forEach((item) => {
+//             const total = item.quantity * item.price;
+//             const rowHeight = Math.max(25, Math.ceil(doc.heightOfString(item.itemName, { width: columnWidths.itemName }) / 12) * 12); // Dynamic height based on item name length
+
+//             // Draw borders for each row
+//             doc.moveTo(startX, y - 5)
+//                 .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
+//                 .stroke();
+
+//             // Draw text within each column
+//             doc.fontSize(12)
+//                 .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left', continued: true }) // Use continued to allow text wrapping
+//                 .text('', { width: columnWidths.itemName, height: rowHeight }) // To create a new line if necessary
+//                 .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
+//                 .text(`${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
+//                 .text(`${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
+
+//             y += rowHeight + 5; // Adjust y position based on dynamic row height
+//         });
+
+//         // Draw borders for the last row
+//         doc.moveTo(startX, y - 5)
+//             .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
+//             .stroke();
+
+//         // Add subtotal, shipping, and total amounts
+//         // Add subtotal, shipping, taxes, redeem coin discount, and total amounts
+//         doc.fontSize(12)
+//             .text(`Subtotal: ${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
+//             .text(`Shipping Charges: ${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
+//             .text(`Taxes: ${Number(invoiceData.taxes).toFixed(2)}`, 400, y + 60, { align: 'right' }) // Display taxes
+//             .text(`Redeem Coins Discount: -${Number(invoiceData.redeemCoinDiscount).toFixed(2)}`, 400, y + 80, { align: 'right' }) // Display redeem coins discount
+//             .fontSize(16)
+//             .text(`Grand Total: Rs.${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 100, { bold: true, align: 'right' }); // Adjust grand total after discounts and taxes
+
+//         // Finalize the PDF
+//         doc.end();
+
+//         // Resolve the promise when PDF is done writing
+//         doc.on('finish', () => {
+//             resolve();
+//         });
+
+//         // Handle errors during PDF generation
+//         doc.on('error', (error) => {
+//             console.error('Error during PDF generation:', error);
+//             reject(error);
+//         });
+//     });
+// };
+
+
+
+
+
+
+
+
+exports.newGenerateInvoice = async (invoiceData, res) => {
+    try {
+        // Load HTML template
+        const htmlTemplate = fs.readFileSync(path.join(__dirname, '../../public/invoiceTemplate.html'), 'utf8');
+
+        // Compile the template with dynamic data
+        const template = Handlebars.compile(htmlTemplate);
+        const html = template({
+            invoiceDate: moment(invoiceData.invoiceDate).format('DD-MM-YYYY HH:mm:ss'),
+            invoiceNumber: invoiceData.orderId,
+            customerName: invoiceData.customerName,
+            shippingAddress: `${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`,
+            orderItems: invoiceData.orderItems.map((item, index) => ({
+                sn: index + 1,
+                itemName: item.itemName,
+                quantity: item.quantity || 0, // Ensure quantity is not undefined
+                price: (item.price || 0).toFixed(2), // Fallback to 0 if price is undefined
+                discount: (item.discount || 0).toFixed(2), // Fallback to 0 if discount is undefined
+                taxableValue: ((item.price || 0) * (item.quantity || 0) - (item.discount || 0)).toFixed(2),
+                tax: (item.tax || 0).toFixed(2), // Fallback to 0 if tax is undefined
+                total: ((item.price || 0) * (item.quantity || 0) - (item.discount || 0) + (item.tax || 0)).toFixed(2),
+            })),
+            redeemCoinDiscount: (invoiceData.redeemCoinDiscount || 0).toFixed(2),
+            subTotal: (invoiceData.subTotal || 0).toFixed(2),
+            shippingCharge: (invoiceData.shipping_charge || 0).toFixed(2),
+            taxes: (invoiceData.taxes || 0).toFixed(2),
+            grandTotal: (invoiceData.grandTotal || 0).toFixed(2),
+        });
+
+        // Launch Puppeteer to create the PDF
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+
+        // Set the content and wait for it to load
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        await page.emulateMediaType('screen');
+
+        // Generate the PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            path: 'invoice.pdf', // Optionally save to a file
+        });
+
+        // Set the headers for the PDF download
         res.setHeader('Content-disposition', `attachment; filename=invoice_${invoiceData.orderId}.pdf`);
         res.setHeader('Content-type', 'application/pdf');
 
-        // Pipe the PDF document directly to the response
-        doc.pipe(res);
+        // Send the PDF as the response
+        res.end(pdfBuffer);
 
-        // Add content to the PDF
-        doc.fontSize(27).text('Invoice', { align: 'center' }).moveDown();
-
-        // Add invoice details
-        doc.fontSize(12)
-            .text(`Invoice Date: ${formattedDate}`, 50, 100)
-            .text(`Invoice Number: ${invoiceData.orderId}`, 50, 120)
-            .moveDown();
-
-        // Add customer information
-        doc.fontSize(14).text('Customer Information:', 50, 150)
-            .fontSize(12)
-            .text(`Name: ${invoiceData.customerName}`, 50, 170)
-            .text(`Email: ${invoiceData.customerEmail}`, 50, 190)
-            .text(`Mobile: ${invoiceData.customerMobile}`, 50, 210)
-            .text(`Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 230)
-            .moveDown();
-
-        // Add table headers for order details
-        const startX = 50;
-        const startY = 270;
-        const columnWidths = {
-            itemName: 250, // Increased width for better alignment
-            quantity: 100,
-            unitPrice: 100,
-            total: 100,
-        };
-
-        doc.fontSize(14).text('Order Details:', startX, startY - 20);
-
-        // Draw table headers
-        doc.fontSize(12)
-            .text('Item Name', startX, startY, { width: columnWidths.itemName, underline: true })
-            .text('Quantity', startX + columnWidths.itemName, startY, { width: columnWidths.quantity, underline: true, align: 'center' })
-            .text('Unit Price', startX + columnWidths.itemName + columnWidths.quantity, startY, { width: columnWidths.unitPrice, underline: true, align: 'right' })
-            .text('Total', startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, startY, { width: columnWidths.total, underline: true, align: 'right' })
-            .moveTo(startX, startY + 15)
-            .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, startY + 15)
-            .stroke();
-
-        // Start Y position for product details
-        let y = startY + 20;
-
-        // Loop through order items and add them to the table
-        invoiceData?.orderItems?.forEach((item) => {
-            const total = item.quantity * item.price;
-            const rowHeight = Math.max(25, Math.ceil(doc.heightOfString(item.itemName, { width: columnWidths.itemName }) / 12) * 12); // Dynamic height based on item name length
-
-            // Draw borders for each row
-            doc.moveTo(startX, y - 5)
-                .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
-                .stroke();
-
-            // Draw text within each column
-            doc.fontSize(12)
-                .text(item.itemName, startX, y, { width: columnWidths.itemName, align: 'left', continued: true }) // Use continued to allow text wrapping
-                .text('', { width: columnWidths.itemName, height: rowHeight }) // To create a new line if necessary
-                .text(item.quantity.toString(), startX + columnWidths.itemName, y, { width: columnWidths.quantity, align: 'center' })
-                .text(`${Number(item.price).toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity, y, { width: columnWidths.unitPrice, align: 'right' })
-                .text(`${total.toFixed(2)}`, startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice, y, { width: columnWidths.total, align: 'right' });
-
-            y += rowHeight + 5; // Adjust y position based on dynamic row height
-        });
-
-        // Draw borders for the last row
-        doc.moveTo(startX, y - 5)
-            .lineTo(startX + columnWidths.itemName + columnWidths.quantity + columnWidths.unitPrice + columnWidths.total, y - 5)
-            .stroke();
-
-        // Add subtotal, shipping, and total amounts
-        doc.fontSize(12)
-            .text(`Subtotal: ${invoiceData.subTotal.toFixed(2)}`, 400, y + 20, { align: 'right' })
-            .text(`Shipping Charges: ${Number(invoiceData.shipping_charge).toFixed(2)}`, 400, y + 40, { align: 'right' })
-            .fontSize(16)
-            .text(`Grand Total: Rs.${Number(invoiceData.grandTotal).toFixed(2)}`, 400, y + 70, { bold: true, align: 'right' });
-
-        // Finalize the PDF
-        doc.end();
-
-        // Resolve the promise when PDF is done writing
-        doc.on('finish', () => {
-            resolve();
-        });
-
-        // Handle errors during PDF generation
-        doc.on('error', (error) => {
-            console.error('Error during PDF generation:', error);
-            reject(error);
-        });
-    });
+        await browser.close();
+    } catch (error) {
+        console.error('Error generating invoice:', error);
+        res.status(500).send('Error generating invoice');
+    }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// exports.newGenerateInvoice = (invoiceData, res) => {
+//     const BASE_PATH = path.join(__dirname, "../../");
+
+//     return new Promise((resolve, reject) => {
+//         const formattedDate = moment(invoiceData.invoiceDate).format('DD-MM-YYYY HH:mm:ss');
+//         const doc = new PDFDocument({ size: 'A4', margin: 50 });
+
+//         const columnWidths = {
+//             sn: 50,
+//             description: 200,
+//             qty: 60,
+//             gross: 80,
+//             discount: 80,
+//             taxable: 80,
+//             taxes: 80,
+//             total: 80,
+//         };
+
+//         const rowHeight = 20; // Default row height
+
+//         // Set headers for file download
+//         res.setHeader('Content-disposition', `attachment; filename=invoice_${invoiceData.orderId}.pdf`);
+//         res.setHeader('Content-type', 'application/pdf');
+
+//         // Pipe the PDF document directly to the response
+//         doc.pipe(res);
+
+//         const drawHeader = () => {
+//             doc.image(`${BASE_PATH}Janhit.png`, 50, 30, { width: 80 })
+//                 .fontSize(16)
+//                 .text('Tax Invoice', 450, 30, { align: 'right' })
+//                 .fontSize(10)
+//                 .text(`Generated on: ${formattedDate}`, { align: 'right' })
+//                 .moveDown(2)
+//                 .fontSize(12)
+//                 .text(`Invoice Number: ${invoiceData.orderId}`, 50, 100)
+//                 .text(`Invoice Date: ${formattedDate}`, 50, 120)
+//                 .text(`Customer: ${invoiceData.customerName}`, 50, 140)
+//                 .text(`Email: ${invoiceData.customerEmail}`, 50, 160)
+//                 .text(`Phone: ${invoiceData.customerMobile}`, 50, 180)
+//                 .text(`Shipping Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 200)
+//                 .moveTo(50, 240).lineTo(550, 240).stroke();
+//         };
+
+//         const drawTableHeader = (y) => {
+//             doc.fontSize(10)
+//                 .text('SN', 50, y, { width: columnWidths.sn, align: 'center' })
+//                 .text('Description', 100, y, { width: columnWidths.description, align: 'left' })
+//                 .text('Qty', 300, y, { width: columnWidths.qty, align: 'center' })
+//                 .text('Gross Amount', 360, y, { width: columnWidths.gross, align: 'right' })
+//                 .text('Discount', 440, y, { width: columnWidths.discount, align: 'right' })
+//                 .text('Taxable Value', 520, y, { width: columnWidths.taxable, align: 'right' })
+//                 .text('Taxes', 600, y, { width: columnWidths.taxes, align: 'right' })
+//                 .text('Total', 680, y, { width: columnWidths.total, align: 'right' })
+//                 .moveTo(50, y + 15).lineTo(750, y + 15).stroke();
+//         };
+
+//         const drawTableRow = (item, y, sn) => {
+//             const textOptions = { width: columnWidths.description, ellipsis: true };
+
+//             // Safeguard the values before calling .toFixed()
+//             const price = item.price ? item.price.toFixed(2) : '0.00';
+//             const discount = item.discount ? item.discount.toFixed(2) : '0.00';
+//             const taxableValue = item.price && item.quantity ? (item.price * item.quantity - item.discount).toFixed(2) : '0.00';
+//             const tax = item.tax ? item.tax.toFixed(2) : '0.00';
+//             const total = item.price && item.quantity ? (item.price * item.quantity - item.discount + item.tax).toFixed(2) : '0.00';
+
+//             doc.fontSize(10)
+//                 .text(sn.toString(), 50, y, { width: columnWidths.sn, align: 'center' })
+//                 .text(item.itemName, 100, y, textOptions)
+//                 .text(item.quantity ? item.quantity.toString() : '0', 300, y, { width: columnWidths.qty, align: 'center' })
+//                 .text(price, 360, y, { width: columnWidths.gross, align: 'right' })
+//                 .text(discount, 440, y, { width: columnWidths.discount, align: 'right' })
+//                 .text(taxableValue, 520, y, { width: columnWidths.taxable, align: 'right' })
+//                 .text(tax, 600, y, { width: columnWidths.taxes, align: 'right' })
+//                 .text(total, 680, y, { width: columnWidths.total, align: 'right' });
+//         };
+
+//         const drawFooter = (y) => {
+//             doc.fontSize(10)
+//                 .text('Thank you for your purchase!', 50, y, { align: 'center' })
+//                 .text('Terms & Conditions:', 50, y + 20)
+//                 .fontSize(8)
+//                 .text('1. This is a computer-generated invoice and does not require a signature.', 50, y + 35)
+//                 .text('2. Tax is not payable on reverse charge basis.', 50, y + 50)
+//                 .text('3. Other charges, if applicable, are detailed in the invoice.', 50, y + 65);
+//         };
+
+//         drawHeader();
+
+//         let y = 260; // Start below the header
+//         drawTableHeader(y);
+//         y += 30; // Space for header
+
+//         let sn = 1;
+//         // Draw table rows with page breaks
+//         invoiceData?.orderItems?.forEach((item) => {
+//             if (y + rowHeight > 750) {
+//                 doc.addPage();
+//                 drawHeader();
+//                 y = 260; // Reset y position for the new page
+//                 drawTableHeader(y);
+//                 y += 30;
+//             }
+
+//             drawTableRow(item, y, sn);
+//             y += rowHeight;
+//             sn++;
+//         });
+
+//         // Add totals section
+//         if (y + 100 > 750) {
+//             doc.addPage();
+//             drawHeader();
+//             y = 260; // Reset y position for the new page
+//         }
+
+//         // Draw totals in a clean and compact layout
+//         doc.fontSize(10);
+//         doc.text(`Redeem Coin Discount: -Rs.${invoiceData.redeemCoinDiscount.toFixed(2)}   Subtotal: Rs.${invoiceData.subTotal.toFixed(2)}   Shipping Charges: Rs.${invoiceData.shipping_charge.toFixed(2)}`, 50, y, { width: 750, align: 'left' });
+//         y += 15;
+//         doc.text(`Taxes: Rs.${invoiceData.taxes.toFixed(2)}   Grand Total: Rs.${invoiceData.grandTotal.toFixed(2)}`, 50, y, { width: 750, align: 'left' });
+//         y += 20;
+
+//         // Footer
+//         if (y + 100 > 750) {
+//             doc.addPage();
+//             drawHeader();
+//             y = 260;
+//         }
+//         drawFooter(y + 80);
+
+//         // Finalize the PDF
+//         doc.end();
+
+//         // Resolve the promise when PDF is done writing
+//         doc.on('finish', resolve);
+//         doc.on('error', reject);
+//     });
+// };
 
 
 

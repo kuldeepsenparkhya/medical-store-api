@@ -269,7 +269,7 @@ exports.create = async (req, res) => {
 
     // Total points in the user's wallet
     const totalPoints = userWallet?.coins || 0;  // Default to 0 if no points
-    
+
     console.log(`userWallet coins: ${userWallet?.coins}, valuePerPoint: ${valuePerPoint}`);
 
     // Calculate the total rupees
@@ -376,7 +376,7 @@ exports.create = async (req, res) => {
     grandTotal = grandTotal - getCoinAmountValue;
     console.log('grandTotal>>>>', grandTotal);
 
-    const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url, loyality_coins: loyalityCoins, };
+    const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url, loyality_coins: getCoinAmountValue, };
     // Add user_wallet_id only if it is valid and not a string "null"
     if (user_wallet_id && user_wallet_id !== "null" && user_wallet_id !== "") {
       data.user_wallet_id = user_wallet_id;
@@ -1549,6 +1549,10 @@ exports.downloadInvoice = async (req, res) => {
       grandTotal: order.total,
       orderItems: orderItems,
       invoiceDate: order.createdAt,
+      
+      // Add taxes and redeem coin discount fields here
+      taxes: order.taxes || 0,  // Assuming taxes are stored in the order
+      redeemCoinDiscount: order.loyality_coins
     };
 
     // Call the generateInvoice function and pass the response object
