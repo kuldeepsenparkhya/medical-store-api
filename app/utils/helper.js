@@ -233,7 +233,11 @@ exports.newGenerateInvoice = async (invoiceData, res) => {
         });
 
         // Launch Puppeteer to create the PDF
-        const browser = await puppeteer.launch();
+
+        // Launch Puppeteer to create the PDF
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Disable sandbox
+        });
         const page = await browser.newPage();
 
         // Set the content and wait for it to load
