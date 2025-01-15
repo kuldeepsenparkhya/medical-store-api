@@ -29,6 +29,14 @@ const orderSchema = Schema({
             required: true,
             ref: 'Media'
         },
+        discount_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: false,
+            ref: 'Discount'
+        },
+        discount: {
+            type: String,
+        },
         quantity: {
             type: Number,
             required: true,

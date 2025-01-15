@@ -47,31 +47,66 @@ exports.getPagination = async (query, fetchedData, totalCount) => {
 
 
 
+// exports.sendMailer = async (email, subject, message, res) => {
+//     const transporter = nodemailer.createTransport({
+//         host: SMPT_EMAIL_HOST,
+//         port: SMPT_EMAIL_PORT,
+//         auth: {
+//             user: SMPT_EMAIL_USER,
+//             pass: SMPT_EMAIL_PASSWORD
+//         },
+//         secure: true
+//     });
+
+//     const mailOptions = {
+//         from: SMPT_EMAIL_FROM,
+//         to: email,
+//         subject: `${subject} - Janhit  Chemist`,
+//         html: message
+//     };
+
+//     try {
+//         await transporter.sendMail(mailOptions);
+//     } catch (error) {
+//         console.error('Email sending error:', error);
+//         // res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
+//     }
+// };
+
+
 exports.sendMailer = async (email, subject, message, res) => {
-    const transporter = nodemailer.createTransport({
-        host: SMPT_EMAIL_HOST,
-        port: SMPT_EMAIL_PORT,
-        auth: {
-            user: SMPT_EMAIL_USER,
-            pass: SMPT_EMAIL_PASSWORD
-        },
-        secure: true
-    });
-
-    const mailOptions = {
-        from: SMPT_EMAIL_FROM,
-        to: email,
-        subject: `${subject} - Janhit  Chemist`,
-        html: message
-    };
-
     try {
+        // Ensure that message is not a Promise, resolve it if necessary
+        if (message instanceof Promise) {
+            message = await message;
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: SMPT_EMAIL_HOST,
+            port: SMPT_EMAIL_PORT,
+            auth: {
+                user: SMPT_EMAIL_USER,
+                pass: SMPT_EMAIL_PASSWORD
+            },
+            secure: true
+        });
+
+        const mailOptions = {
+            from: SMPT_EMAIL_FROM,
+            to: email,
+            subject: `${subject} - Janhit Chemist`,
+            html: message
+        };
+
+        // Send the email
         await transporter.sendMail(mailOptions);
     } catch (error) {
         console.error('Email sending error:', error);
-        // res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
+        // Handle error response
+        res.status(error.responseCode || 500).send({ error: true, message: 'Failed to send email' });
     }
 };
+
 
 exports.createUUID = () => {
     var dt = new Date().getTime()
@@ -196,12 +231,8 @@ exports.sendNotification = (subscription, payload) => {
 //     });
 // };
 
-
-
-
-
-
-
+const logoPath = path.join(__dirname, '../../public/Janhit.png');
+const logoBase64 = fs.readFileSync(logoPath, 'base64');
 
 exports.newGenerateInvoice = async (invoiceData, res) => {
     try {
@@ -220,26 +251,35 @@ exports.newGenerateInvoice = async (invoiceData, res) => {
                 itemName: item.itemName,
                 quantity: item.quantity || 0, // Ensure quantity is not undefined
                 price: (item.price || 0).toFixed(2), // Fallback to 0 if price is undefined
-                discount: (item.discount || 0).toFixed(2), // Fallback to 0 if discount is undefined
+                discount: (item.discount || 0), // Fallback to 0 if discount is undefined
                 taxableValue: ((item.price || 0) * (item.quantity || 0) - (item.discount || 0)).toFixed(2),
                 tax: (item.tax || 0).toFixed(2), // Fallback to 0 if tax is undefined
-                total: ((item.price || 0) * (item.quantity || 0) - (item.discount || 0) + (item.tax || 0)).toFixed(2),
+                total: item.total,
+                grossAmount: ((item.price || 0) * (item.quantity || 0) - (item.discount || 0) + (item.tax || 0)).toFixed(2),
+
             })),
+
             redeemCoinDiscount: (invoiceData.redeemCoinDiscount || 0).toFixed(2),
             subTotal: (invoiceData.subTotal || 0).toFixed(2),
             shippingCharge: (invoiceData.shipping_charge || 0).toFixed(2),
             taxes: (invoiceData.taxes || 0).toFixed(2),
             grandTotal: (invoiceData.grandTotal || 0).toFixed(2),
+            logoBase64: `data:image/png;base64,${logoBase64}`
         });
 
         // Launch Puppeteer to create the PDF
 
         // Launch Puppeteer to create the PDF
         const browser = await puppeteer.launch({
-            executablePath: '/usr/bin/chromium-browser', // Path to the system-installed Chromium
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            executablePath: '/usr/bin/chromium-browser',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--headless', // Enable headless mode (no graphical interface)
+                '--disable-gpu', // Disable GPU acceleration (optional but can help on some systems)
+            ],
         });
-        
+
         const page = await browser.newPage();
 
         // Set the content and wait for it to load
@@ -266,168 +306,6 @@ exports.newGenerateInvoice = async (invoiceData, res) => {
         res.status(500).send('Error generating invoice');
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// exports.newGenerateInvoice = (invoiceData, res) => {
-//     const BASE_PATH = path.join(__dirname, "../../");
-
-//     return new Promise((resolve, reject) => {
-//         const formattedDate = moment(invoiceData.invoiceDate).format('DD-MM-YYYY HH:mm:ss');
-//         const doc = new PDFDocument({ size: 'A4', margin: 50 });
-
-//         const columnWidths = {
-//             sn: 50,
-//             description: 200,
-//             qty: 60,
-//             gross: 80,
-//             discount: 80,
-//             taxable: 80,
-//             taxes: 80,
-//             total: 80,
-//         };
-
-//         const rowHeight = 20; // Default row height
-
-//         // Set headers for file download
-//         res.setHeader('Content-disposition', `attachment; filename=invoice_${invoiceData.orderId}.pdf`);
-//         res.setHeader('Content-type', 'application/pdf');
-
-//         // Pipe the PDF document directly to the response
-//         doc.pipe(res);
-
-//         const drawHeader = () => {
-//             doc.image(`${BASE_PATH}Janhit.png`, 50, 30, { width: 80 })
-//                 .fontSize(16)
-//                 .text('Tax Invoice', 450, 30, { align: 'right' })
-//                 .fontSize(10)
-//                 .text(`Generated on: ${formattedDate}`, { align: 'right' })
-//                 .moveDown(2)
-//                 .fontSize(12)
-//                 .text(`Invoice Number: ${invoiceData.orderId}`, 50, 100)
-//                 .text(`Invoice Date: ${formattedDate}`, 50, 120)
-//                 .text(`Customer: ${invoiceData.customerName}`, 50, 140)
-//                 .text(`Email: ${invoiceData.customerEmail}`, 50, 160)
-//                 .text(`Phone: ${invoiceData.customerMobile}`, 50, 180)
-//                 .text(`Shipping Address: ${invoiceData.address.address}, ${invoiceData.address.city}, ${invoiceData.address.state} - ${invoiceData.address.pincode}`, 50, 200)
-//                 .moveTo(50, 240).lineTo(550, 240).stroke();
-//         };
-
-//         const drawTableHeader = (y) => {
-//             doc.fontSize(10)
-//                 .text('SN', 50, y, { width: columnWidths.sn, align: 'center' })
-//                 .text('Description', 100, y, { width: columnWidths.description, align: 'left' })
-//                 .text('Qty', 300, y, { width: columnWidths.qty, align: 'center' })
-//                 .text('Gross Amount', 360, y, { width: columnWidths.gross, align: 'right' })
-//                 .text('Discount', 440, y, { width: columnWidths.discount, align: 'right' })
-//                 .text('Taxable Value', 520, y, { width: columnWidths.taxable, align: 'right' })
-//                 .text('Taxes', 600, y, { width: columnWidths.taxes, align: 'right' })
-//                 .text('Total', 680, y, { width: columnWidths.total, align: 'right' })
-//                 .moveTo(50, y + 15).lineTo(750, y + 15).stroke();
-//         };
-
-//         const drawTableRow = (item, y, sn) => {
-//             const textOptions = { width: columnWidths.description, ellipsis: true };
-
-//             // Safeguard the values before calling .toFixed()
-//             const price = item.price ? item.price.toFixed(2) : '0.00';
-//             const discount = item.discount ? item.discount.toFixed(2) : '0.00';
-//             const taxableValue = item.price && item.quantity ? (item.price * item.quantity - item.discount).toFixed(2) : '0.00';
-//             const tax = item.tax ? item.tax.toFixed(2) : '0.00';
-//             const total = item.price && item.quantity ? (item.price * item.quantity - item.discount + item.tax).toFixed(2) : '0.00';
-
-//             doc.fontSize(10)
-//                 .text(sn.toString(), 50, y, { width: columnWidths.sn, align: 'center' })
-//                 .text(item.itemName, 100, y, textOptions)
-//                 .text(item.quantity ? item.quantity.toString() : '0', 300, y, { width: columnWidths.qty, align: 'center' })
-//                 .text(price, 360, y, { width: columnWidths.gross, align: 'right' })
-//                 .text(discount, 440, y, { width: columnWidths.discount, align: 'right' })
-//                 .text(taxableValue, 520, y, { width: columnWidths.taxable, align: 'right' })
-//                 .text(tax, 600, y, { width: columnWidths.taxes, align: 'right' })
-//                 .text(total, 680, y, { width: columnWidths.total, align: 'right' });
-//         };
-
-//         const drawFooter = (y) => {
-//             doc.fontSize(10)
-//                 .text('Thank you for your purchase!', 50, y, { align: 'center' })
-//                 .text('Terms & Conditions:', 50, y + 20)
-//                 .fontSize(8)
-//                 .text('1. This is a computer-generated invoice and does not require a signature.', 50, y + 35)
-//                 .text('2. Tax is not payable on reverse charge basis.', 50, y + 50)
-//                 .text('3. Other charges, if applicable, are detailed in the invoice.', 50, y + 65);
-//         };
-
-//         drawHeader();
-
-//         let y = 260; // Start below the header
-//         drawTableHeader(y);
-//         y += 30; // Space for header
-
-//         let sn = 1;
-//         // Draw table rows with page breaks
-//         invoiceData?.orderItems?.forEach((item) => {
-//             if (y + rowHeight > 750) {
-//                 doc.addPage();
-//                 drawHeader();
-//                 y = 260; // Reset y position for the new page
-//                 drawTableHeader(y);
-//                 y += 30;
-//             }
-
-//             drawTableRow(item, y, sn);
-//             y += rowHeight;
-//             sn++;
-//         });
-
-//         // Add totals section
-//         if (y + 100 > 750) {
-//             doc.addPage();
-//             drawHeader();
-//             y = 260; // Reset y position for the new page
-//         }
-
-//         // Draw totals in a clean and compact layout
-//         doc.fontSize(10);
-//         doc.text(`Redeem Coin Discount: -Rs.${invoiceData.redeemCoinDiscount.toFixed(2)}   Subtotal: Rs.${invoiceData.subTotal.toFixed(2)}   Shipping Charges: Rs.${invoiceData.shipping_charge.toFixed(2)}`, 50, y, { width: 750, align: 'left' });
-//         y += 15;
-//         doc.text(`Taxes: Rs.${invoiceData.taxes.toFixed(2)}   Grand Total: Rs.${invoiceData.grandTotal.toFixed(2)}`, 50, y, { width: 750, align: 'left' });
-//         y += 20;
-
-//         // Footer
-//         if (y + 100 > 750) {
-//             doc.addPage();
-//             drawHeader();
-//             y = 260;
-//         }
-//         drawFooter(y + 80);
-
-//         // Finalize the PDF
-//         doc.end();
-
-//         // Resolve the promise when PDF is done writing
-//         doc.on('finish', resolve);
-//         doc.on('error', reject);
-//     });
-// };
 
 
 

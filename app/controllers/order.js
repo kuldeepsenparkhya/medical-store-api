@@ -23,9 +23,7 @@ exports.create = async (req, res) => {
     let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : "";
     const requirePrescription = [];
 
-    // const comboDiscountProducts = []
     //-------------------------------- Check prescription require products --------------------------------
-
     await Promise.all(products.map(async (item) => {
       if (!req.file) {
         const getNeededPrescriptions = await Product.findOne({ _id: item.product_id, isRequirePrescription: true, });
@@ -60,191 +58,11 @@ exports.create = async (req, res) => {
       return;
     }
 
-    // //-------------------------------- Handle user wallet coins and apply or not --------------------------------
-    // let getCoinAmountValue = 0;
-    // let loyalityCoins = 0;
-
-    // if (user_wallet_id && user_wallet_id !== "null") {
-    //   // Check for null and string "null"
-    //   const userWallet = await UserWallet.findOne({ _id: user_wallet_id });
-
-    //   if (!userWallet) {
-    //     handleError("Invalid user_wallet  ID", 400, res);
-    //     return;
-    //   }
-
-    //   const getCoin = await Coin.findOne({});
-
-    //   loyalityCoins = userWallet.coins;
-
-    //   // const getOneCoinValue = getCoin?.coins / getCoin?.coins_amount;
-    //   // getCoinAmountValue = userWallet?.coins / getOneCoinValue;
-
-    //   // Extract the coin values
-    //   const pointsPerCoin = getCoin.coins; // Points per coin
-    //   const rupeesPerCoin = getCoin.coins_amount; // Rupees per coin
-
-    //   // Calculate the value of 1 point (1 point = rupeesPerCoin / pointsPerCoin)
-    //   const valuePerPoint = rupeesPerCoin / pointsPerCoin;
-
-    //   // Total points in the user's wallet
-    //   const totalPoints = userWallet.coins;
-
-    //   // Calculate the total rupees
-    //   getCoinAmountValue = totalPoints * valuePerPoint;
-    //   console.log(`Total rupees: ${getCoinAmountValue}`);
-
-    //   await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
-    // }
-
-    // // const couponDiscount = await Offer.findOne({ coupon_code: req.body.coupon_code })
-    // // Check inventory availability
-    // const outOfStockVariants = [];
-    // let dueQuantity;
-
-    // await Promise.all(
-    //   products.map(async (item) => {
-    //     const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
-
-    //     dueQuantity = inventory?.total_variant_quantity - inventory?.sale_variant_quantity;
-
-    //     if (dueQuantity < item.quantity) {
-    //       outOfStockVariants.push({
-    //         product_id: item.product_id,
-    //         product_variant_id: item.product_variant_id,
-    //         quantity: item.quantity,
-    //       });
-    //     }
-    //   })
-    // );
-
-    // if (outOfStockVariants.length > 0) {
-    //   return res.status(400).send({
-    //     message: "Out of stock some product varients.",
-    //     error: true,
-    //     dueQuantity,
-    //     outOfStockVariants,
-    //   });
-    // }
-
-    // // Order
-    // // const newData = await Promise.all(products.map(async (item, i) => {
-    // //   console.log('item<<<<<<<<', item);
-    // //   const price = parseFloat(item.price); // Convert price to number
-    // //   const quantity = parseInt(item.quantity, 10); // Convert quantity to integer
-
-    // //   // Validate price and quantity
-    // //   if (isNaN(price) || isNaN(quantity)) {
-    // //     console.error('Invalid price or quantity:', item); // Log invalid data
-    // //     item.total = 0; // Set total to 0 if data is invalid
-    // //   } else {
-    // //     if (item?.discount_id !== null && item.discount_id === undefined) {
-    // //       const discount = await Discount.findOne({ _id: item?.discount_id });
-    // //       item.total = discount?.discount_type === "perc" ? quantity * price * (1 - discount?.discount / 100) : quantity * price - discount?.discount;
-    // //     } else {
-    // //       item.total = quantity * price;
-    // //     }
-    // //   }
-
-    // //   console.log('item.total>>>>>>>>>', item.total);
-
-    // //   return item;
-    // // }));
-
-    // // let subTotal = 0;
-
-    // // newData.forEach((item) => {
-    // //   // Only add to subtotal if item.total is a valid number
-    // //   if (!isNaN(item.total)) {
-    // //     subTotal += item.total;
-    // //   } else {
-    // //     console.error('Invalid total for item:', item); // Log items with invalid total
-    // //   }
-    // // });
-
-    // // Order processing with asynchronous calculation for each product
-
-
-    // const newData = await Promise.all(products.map(async (item, i) => {
-    //   // Convert price and quantity to numbers
-
-    //   const productVarientPrice = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, })
-
-    //   const price = parseFloat(productVarientPrice?.price); // Convert price to a float
-    //   const quantity = parseInt(item.quantity, 10); // Convert quantity to an integer
-
-    //   // Validate price and quantity
-    //   if (isNaN(price) || isNaN(quantity)) {
-    //     item.total = 0; // Set total to 0 if data is invalid
-    //   }
-    //   else {
-    //     // If discount_id is present
-    //     if (item?.discount_id && item?.discount_id !== 'null' && item?.discount_id !== undefined) {
-    //       // Fetch the discount from the database
-    //       const discount = await Discount.findOne({ _id: item.discount_id });
-
-    //       // Apply discount logic
-    //       if (discount) {
-    //         // If discount type is percentage
-    //         if (discount?.discount_type === "perc") {
-    //           item.total = quantity * price * (1 - discount?.discount / 100);
-    //           item.price = price
-
-    //         } else {
-    //           // Apply fixed discount
-    //           item.total = quantity * price - discount?.discount;
-    //           item.price = price
-
-    //         }
-    //       } else {
-    //         // If no discount is found, calculate total without discount
-    //         item.total = quantity * price;
-    //         item.price = price
-
-    //       }
-    //     } else {
-    //       // No discount case, calculate total normally
-    //       item.total = quantity * price;
-    //       item.price = price
-    //     }
-    //   }
-
-    //   return item; // Return the updated item with total
-    // }));
-
-    // // After processing all products, calculate subTotal
-    // let subTotal = 0;
-    // let grandTotal = 0;
-
-    // // Sum up the totals for all valid products
-    // newData.forEach((item) => {
-    //   if (!isNaN(item.total)) {
-    //     subTotal += item.total; // Add the total if it's a valid number
-    //   } else {
-    //     console.error('Invalid total for item:', item); // Log invalid total
-    //   }
-    // });
-
-    // // Calculate initial total including subtotal and shipping charge
-    // const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
-    // grandTotal = totalBeforeDiscount;
-    // // Subtract coin amount value
-    // if (user_wallet_id) {
-    //   grandTotal -= getCoinAmountValue;
-    // }
-
-
-
-
-
-
     //-------------------------------- Handle user wallet coins and apply or not --------------------------------
+
     let getCoinAmountValue = 0;
-    let loyalityCoins = 0;
 
     // Check for valid user_wallet_id
-    console.log('user_wallet_id>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', user_wallet_id);
-
     const userWallet = await UserWallet.findOne({ _id: user_wallet_id });
 
     const getCoin = await Coin.findOne({});
@@ -275,7 +93,6 @@ exports.create = async (req, res) => {
     // Calculate the total rupees
     getCoinAmountValue = totalPoints * valuePerPoint;
 
-
     // Reset user wallet coins after using them
     await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
 
@@ -285,10 +102,7 @@ exports.create = async (req, res) => {
 
     await Promise.all(
       products.map(async (item) => {
-        const inventory = await Inventory.findOne({
-          product_id: item.product_id,
-          product_variant_id: item.product_variant_id,
-        });
+        const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
 
         dueQuantity = inventory?.total_variant_quantity - inventory?.sale_variant_quantity;
 
@@ -315,33 +129,40 @@ exports.create = async (req, res) => {
     }
 
     // Order processing for products, including discounts
-    const newData = await Promise.all(products.map(async (item) => {
-      const productVariant = await ProductVariant.findOne({
-        _id: item.product_variant_id,
-        productId: item.product_id
-      });
 
+    const newData = await Promise.all(products.map(async (item) => {
+      // Convert discount_id if it is the string "null"
+      if (item.discount_id === 'null') {
+        item.discount_id = null; // Set it to null, not the string 'null'
+      }
+
+      const productVariant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id })
       const price = parseFloat(productVariant?.price);  // Convert price to a float
       const quantity = parseInt(item.quantity, 10);     // Convert quantity to an integer
 
       if (isNaN(price) || isNaN(quantity)) {
         item.total = 0;  // Set total to 0 if data is invalid
-      } else {
-        // If a discount is present
-        if (item?.discount_id && item?.discount_id !== 'null' && item?.discount_id !== undefined) {
-          const discount = await Discount.findOne({ _id: item.discount_id });
+      }
+      else {
+        if (item?.discount_id && isValidObjectId(item?.discount_id) && item.discount_id !== "null") {
+          const discount = await Discount.findOne({ _id: item?.discount_id });
 
           if (discount) {
-            if (discount.discount_type === "perc") {
-              item.total = quantity * price * (1 - discount.discount / 100);  // Apply percentage discount
+            if (discount?.discount_type === "perc") {
+              item.total = quantity * price * (1 - discount.discount / 100);
+              item.discount = `${discount.discount}%`// Apply percentage discount
             } else {
               item.total = quantity * price - discount.discount;  // Apply fixed discount
+              item.discount = discount.discount || 0 // Apply percentage discount
             }
             item.price = price;
-          } else {
+          }
+
+          else {
             item.total = quantity * price;  // No discount found, calculate normally
             item.price = price;
           }
+
         } else {
           item.total = quantity * price;  // No discount, normal price calculation
           item.price = price;
@@ -354,7 +175,6 @@ exports.create = async (req, res) => {
     // After processing all products, calculate subTotal
     let subTotal = 0;
     let grandTotal = 0;
-
     // Sum up the totals for all valid products
     newData.forEach((item) => {
       if (!isNaN(item.total)) {
@@ -370,11 +190,7 @@ exports.create = async (req, res) => {
     grandTotal = totalBeforeDiscount;
 
     // Subtract the loyalty coin amount from the grand total if valid
-
-    console.log(`getCoinAmountValue: ${getCoinAmountValue}, grandTotal: ${grandTotal}`);
-
     grandTotal = grandTotal - getCoinAmountValue;
-    console.log('grandTotal>>>>', grandTotal);
 
     const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url, loyality_coins: getCoinAmountValue, };
     // Add user_wallet_id only if it is valid and not a string "null"
@@ -1516,11 +1332,10 @@ exports.downloadInvoice = async (req, res) => {
 
     const orderItems = await Promise.all(
       order.products.map(async (item) => {
+
         const product = await Product.findOne({ _id: item.product_id });
-        const variant = await ProductVariant.findOne({
-          _id: item.product_variant_id,
-          productId: item.product_id,
-        });
+        const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id });
+        const discount = await Discount.findOne({ _id: variant.discounted_id });
 
         product._doc.variant = variant;
 
@@ -1528,6 +1343,8 @@ exports.downloadInvoice = async (req, res) => {
           itemName: product.title,
           quantity: item.quantity,
           price: item.price,
+          discount: discount ? discount.discount_type === 'perc' ? `${discount.discount}%` : discount.discount : 0,
+          total: discount ? discount.discount_type === 'perc' ? item.quantity * item.price * (1 - discount.discount / 100) : item.quantity * item.price - discount.discount : item.quantity * item.price
         };
       })
     );
@@ -1549,7 +1366,7 @@ exports.downloadInvoice = async (req, res) => {
       grandTotal: order.total,
       orderItems: orderItems,
       invoiceDate: order.createdAt,
-      
+
       // Add taxes and redeem coin discount fields here
       taxes: order.taxes || 0,  // Assuming taxes are stored in the order
       redeemCoinDiscount: order.loyality_coins
@@ -1564,5 +1381,4 @@ exports.downloadInvoice = async (req, res) => {
 };
 
 // --------------------------------------------- End of generate Oder Invoice ------------------------------------------------------//
-//
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice</title>
     <style>
-       body {
+      body {
         font-family: Arial, sans-serif;
         margin: 50px;
       }
@@ -78,7 +78,7 @@
   </head>
   <body>
     <div class="invoice-header">
-      <img class="logo" src="https://welljanhitchemist.com/Janhit.png" alt="Logo" />
+      <img class="logo" src="{{logoBase64}}" alt="Logo" />
       <div>
         <h1>Tax Invoice</h1>
         <p>Generated on: {{invoiceDate}}</p>
@@ -97,11 +97,11 @@
           <th>SN</th>
           <th>Description</th>
           <th>Qty</th>
-          <th>Gross Amount</th>
+          <th>Gross Ammount</th>
           <th>Discount</th>
           <th>Taxable Value</th>
           <th>Taxes</th>
-          <th>Total</th>
+          <th>Total ₨.</th>
         </tr>
       </thead>
       <tbody>
@@ -120,14 +120,18 @@
       </tbody>
     </table>
 
-    <div class="totals">
-      <div>Redeem Coin Discount: Rs.{{redeemCoinDiscount}}</div>
-      <div>Subtotal: Rs.{{subTotal}}</div>
-      <div>Shipping Charges: Rs.{{shippingCharge}}</div>
-      <div>Taxes: Rs.{{taxes}}</div>
-      <div><strong>Grand Total: Rs.{{grandTotal}}</strong></div>
-    </div>
-
+    <table class="table">
+      <tbody>
+        <tr>
+          <td>Redeem Coin Discount ₨.</td>
+          <td>{{redeemCoinDiscount}}</td>
+        </tr>
+        <tr>
+          <td>Grand Total ₨.</td>
+          <td>{{grandTotal}}</td>
+        </tr>
+      </tbody>
+    </table>
     <div class="footer">
       <p>Thank you for your purchase!</p>
       <p>Terms & Conditions apply.</p>
