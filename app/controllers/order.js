@@ -1,8 +1,11 @@
 const Razorpay = require("razorpay");
 
+const crypto = require('crypto')
+
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+
 const { orderVailidationSchema } = require("./joiValidator/orderJoiSchema");
 const { handleError, handleResponse, generateInvoice, sendMailer, orderConfirmationMail, orderNotifiationEmail, newGenerateInvoice } = require("../utils/helper");
 const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transaction, Offer, Discount, UserWallet, Coin } = require("../modals");
@@ -220,6 +223,10 @@ exports.create = async (req, res) => {
     await newOrder.save();
 
     const orderItems = await Promise.all(products.map(async (item) => {
+
+      console.log('item>>>>>>>>', item);
+
+
       const product = await Product.findOne({ _id: item.product_id });
       const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
 
@@ -259,23 +266,27 @@ exports.create = async (req, res) => {
 
     sendMailer(req.user.email, subject, message, res);
 
-    if (order_type === "PREPAID") {
-      var razorPayIinstance = new Razorpay({
-        key_id: "rzp_test_GcZZFDPP0jHtC4",
-        key_secret: "6JdtQv2u7oUw7EWziYeyoewJ",
-      });
+    // if (order_type === "PREPAID") {
 
-      const amount = Math.round(grandTotal * 100);
+    var razorPayIinstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_SECRET,
+    });
 
-      const options = {
-        amount: amount,
-        currency: "INR",
-        receipt: `${req.user.name}`,
-        payment_capture: 1,
-      };
+    const amount = Math.round(grandTotal * 100);
 
-      const response = await razorPayIinstance.orders.create(options);
+    const options = {
+      amount: amount,
+      currency: "INR",
+      receipt: `${req.user.name}`,
+      payment_capture: 1,
+    };
 
+    await razorPayIinstance.orders.create(options, async (error, response) => {
+      if (error) {
+        console.log('Checkout Error >>>>>', error);
+        return res.status(500).json({ message: "Something Went Wrong!" });
+      }
       const transactionData = {
         transaction_id: response.id,
         receipt: response.receipt,
@@ -287,9 +298,11 @@ exports.create = async (req, res) => {
 
       const transaction = new Transaction(transactionData);
       await transaction.save();
-    }
 
-    handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
+      handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
+
+    });
+
   } catch (error) {
     console.log("error>>>>>>>", error);
     handleError(error.message, 400, res);
@@ -1229,25 +1242,37 @@ exports.salesReport = async (req, res) => {
 };
 
 exports.checkout = async (req, res) => {
+
   var razorPayIinstance = new Razorpay({
-    key_id: "rzp_test_GcZZFDPP0jHtC4",
-    key_secret: "6JdtQv2u7oUw7EWziYeyoewJ",
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_SECRET,
   });
 
+  const { amount } = req.body
+
   const options = {
-    amount: req.body.amount * 100,
+    amount: Number(amount) * 100,
     currency: "INR",
-    receipt: "reciept#1",
+    receipt: crypto.randomBytes(10).toString("hex"),
     payment_capture: 1,
   };
+
   try {
-    const response = await razorPayIinstance.orders.create(options);
+
+    await razorPayIinstance.orders.create(options, (error, response));
+    if (error) {
+      console.log('Checkout Error >>>>>', error);
+      return res.status(500).json({ message: "Something Went Wrong!" });
+    }
 
     res.send({
       order_id: response.id,
       currency: response.currency,
       amount: response.amount,
     });
+
+
+
   } catch (error) {
     res.send({ error: true, message: error.message });
   }
