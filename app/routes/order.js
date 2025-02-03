@@ -31,8 +31,10 @@ module.exports = app => {
         try {
             // Create Sign
             const sign = razorpay_order_id + "|" + razorpay_payment_id;
+
             // Create ExpectedSign
-            const expectedSign = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET).update(sign.toString()).digest("hex");
+            // const expectedSign = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET).update(sign.toString()).digest("hex");
+            const expectedSign = crypto.HmacSHA256(sign, process.env.RAZORPAY_SECRET).toString(crypto.enc.Hex);
 
             // console.log(razorpay_signature === expectedSign);
 
