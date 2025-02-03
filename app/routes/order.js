@@ -5,6 +5,7 @@ var router = require('express').Router(); 3
 const path = require("path");
 const { fileUploader } = require('../middlewares/fileUpload');
 const { Payment } = require('../modals');
+const crypto = require('crypto-js');
 
 
 module.exports = app => {
