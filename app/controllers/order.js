@@ -287,6 +287,7 @@ exports.create = async (req, res) => {
         console.log('Checkout Error >>>>>', error);
         return res.status(500).json({ message: "Something Went Wrong!" });
       }
+
       const transactionData = {
         transaction_id: response.id,
         receipt: response.receipt,
@@ -299,7 +300,7 @@ exports.create = async (req, res) => {
       const transaction = new Transaction(transactionData);
       await transaction.save();
 
-      handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
+      handleResponse(res, response, "Order has been successfully placed.", 201);
 
     });
 
