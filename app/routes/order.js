@@ -26,7 +26,7 @@ module.exports = app => {
 
 
     // ROUTE 2 : Create Verify Api Using POST Method http://localhost:4000/api/payment/verify
-    
+
     router.post('/payment/verify', async (req, res) => {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
         try {
@@ -41,6 +41,9 @@ module.exports = app => {
 
             // Create isAuthentic
             const isAuthentic = expectedSign === razorpay_signature;
+
+            console.log('isAuthentic>>>', isAuthentic);
+
 
             // Condition 
             if (isAuthentic) {
