@@ -12,6 +12,291 @@ const { Order, Product, ProductVariant, User, AddressBook, Inventory, Transactio
 const { isValidObjectId, default: mongoose } = require("mongoose");
 
 // Place order
+// exports.create = async (req, res) => {
+//   try {
+//     const { products, address_id, shipping_charge, order_type, user_wallet_id, } = req.body;
+
+//     const { error } = orderVailidationSchema.validate(req.body, { abortEarly: false, });
+//     if (error) {
+//       handleError(error, 400, res);
+//       return;
+//     }
+
+//     let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : "";
+//     const requirePrescription = [];
+
+//     //-------------------------------- Check prescription require products --------------------------------
+//     await Promise.all(products.map(async (item) => {
+//       if (!req.file) {
+//         const getNeededPrescriptions = await Product.findOne({ _id: item.product_id, isRequirePrescription: true, });
+
+//         if (getNeededPrescriptions) {
+//           requirePrescription.push(getNeededPrescriptions.title);
+//         }
+//       }
+//     })
+//     );
+
+//     if (requirePrescription.length > 0) {
+//       res.status(400).send({
+//         message: `Prescription upload is required for the following items: ${requirePrescription}. Please upload your prescription to proceed.`,
+//         error: true,
+//       });
+//       return;
+//     }
+
+//     //-------------------------------- Check address is exist or not --------------------------------
+//     const address = await AddressBook.findOne({ _id: address_id });
+//     if (!address) {
+//       handleError("Invalid address ID", 400, res);
+//       return;
+//     }
+
+//     //-------------------------------- Check is user loggedIn or not --------------------------------
+//     const user = await User.findOne({ _id: req?.user?._id });
+
+//     if (!user) {
+//       handleError("You need to login", 400, res);
+//       return;
+//     }
+
+//     //-------------------------------- Handle user wallet coins and apply or not --------------------------------
+//     let getCoinAmountValue = 0;
+
+//     // Check for valid user_wallet_id
+//     const userWallet = await UserWallet.findOne({ _id: user_wallet_id });
+
+//     const getCoin = await Coin.findOne({});
+
+//     if (!getCoin) {
+//       handleError("Invalid coin data", 400, res);
+//       return;
+//     }
+
+//     // Extract the coin values
+//     const pointsPerCoin = getCoin?.coins || 0;  // Default to 0 if invalid
+//     const rupeesPerCoin = getCoin?.coins_amount || 0;  // Default to 0 if invalid
+
+//     // Ensure pointsPerCoin is not 0 to avoid division by zero
+//     if (pointsPerCoin === 0) {
+//       console.error('Invalid points per coin');
+//       return;
+//     }
+
+//     // Calculate the value of 1 point (1 point = rupeesPerCoin / pointsPerCoin)
+//     const valuePerPoint = rupeesPerCoin / pointsPerCoin;
+
+//     // Total points in the user's wallet
+//     const totalPoints = userWallet?.coins || 0;  // Default to 0 if no points
+
+//     console.log(`userWallet coins: ${userWallet?.coins}, valuePerPoint: ${valuePerPoint}`);
+
+//     // Calculate the total rupees
+//     getCoinAmountValue = totalPoints * valuePerPoint;
+
+//     // Reset user wallet coins after using them
+//     await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
+
+//     // Inventory check for out-of-stock variants
+//     const outOfStockVariants = [];
+//     let dueQuantity;
+
+//     await Promise.all(
+//       products.map(async (item) => {
+//         const inventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+
+//         dueQuantity = inventory?.total_variant_quantity - inventory?.sale_variant_quantity;
+
+//         // If the dueQuantity is less than the requested quantity, mark it as out of stock
+//         if (dueQuantity < item.quantity) {
+//           outOfStockVariants.push({
+//             product_id: item.product_id,
+//             product_variant_id: item.product_variant_id,
+//             quantity: item.quantity,
+//             dueQuantity,  // Store dueQuantity in each item for better tracking
+//           });
+//         }
+//       })
+//     );
+
+//     // If out-of-stock variants are found, return an error response
+//     if (outOfStockVariants.length > 0) {
+//       return res.status(400).send({
+//         message: "Out of stock for some product variants.",
+//         error: true,
+//         dueQuantity,
+//         outOfStockVariants,
+//       });
+//     }
+
+//     // Order processing for products, including discounts
+
+//     const newData = await Promise.all(products.map(async (item) => {
+//       // Convert discount_id if it is the string "null"
+//       if (item.discount_id === 'null') {
+//         item.discount_id = null; // Set it to null, not the string 'null'
+//       }
+
+//       const productVariant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id })
+//       const price = parseFloat(productVariant?.price);  // Convert price to a float
+//       const quantity = parseInt(item.quantity, 10);     // Convert quantity to an integer
+
+//       if (isNaN(price) || isNaN(quantity)) {
+//         item.total = 0;  // Set total to 0 if data is invalid
+//       }
+//       else {
+//         if (item?.discount_id && isValidObjectId(item?.discount_id) && item.discount_id !== "null") {
+//           const discount = await Discount.findOne({ _id: item?.discount_id });
+
+//           if (discount) {
+//             if (discount?.discount_type === "perc") {
+//               item.total = quantity * price * (1 - discount.discount / 100);
+//               item.discount = `${discount.discount}%`// Apply percentage discount
+//             } else {
+//               item.total = quantity * price - discount.discount;  // Apply fixed discount
+//               item.discount = discount.discount || 0 // Apply percentage discount
+//             }
+//             item.price = price;
+//           }
+
+//           else {
+//             item.total = quantity * price;  // No discount found, calculate normally
+//             item.price = price;
+//           }
+
+//         } else {
+//           item.total = quantity * price;  // No discount, normal price calculation
+//           item.price = price;
+//         }
+//       }
+
+//       return item;  // Return the updated item with total
+//     }));
+
+//     // After processing all products, calculate subTotal
+//     let subTotal = 0;
+//     let grandTotal = 0;
+//     // Sum up the totals for all valid products
+//     newData.forEach((item) => {
+//       if (!isNaN(item.total)) {
+//         subTotal += item.total;  // Add valid totals to subTotal
+//       } else {
+//         console.error('Invalid total for item:', item);  // Log invalid total
+//       }
+//     });
+
+//     // Calculate total before discount, including shipping charge
+//     const totalBeforeDiscount = Number(subTotal) + Number(shipping_charge);
+
+//     grandTotal = totalBeforeDiscount;
+
+//     // Subtract the loyalty coin amount from the grand total if valid
+//     grandTotal = grandTotal - getCoinAmountValue;
+
+//     const data = { products: newData, subTotal, user_id: user._id, address_id, shippingCost: shipping_charge, total: grandTotal, order_type, prescription_url: prescription_url, loyality_coins: getCoinAmountValue, };
+//     // Add user_wallet_id only if it is valid and not a string "null"
+//     if (user_wallet_id && user_wallet_id !== "null" && user_wallet_id !== "") {
+//       data.user_wallet_id = user_wallet_id;
+//     }
+
+//     const newOrder = new Order(data);
+//     let assignedCoins = 0;
+
+//     if (newOrder.total >= 500 && newOrder.total < 700) {
+//       assignedCoins = 15;
+//     } else if (newOrder.total >= 700 && newOrder.total < 1500) {
+//       assignedCoins = 25;
+//     } else if (newOrder.total >= 1501) {
+//       assignedCoins = 25;
+//     } else {
+//       assignedCoins = 5;
+//     }
+
+
+
+
+
+
+//     await newOrder.save();
+    
+//     const getCoins = await UserWallet.findOne({ user_id: req.user._id });
+//     await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
+
+
+//     const orderItems = await Promise.all(products.map(async (item) => {
+
+//       const product = await Product.findOne({ _id: item.product_id });
+//       const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
+
+//       product._doc.variant = variant;
+
+//       const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
+
+//       // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+//       const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+//       const saleQty = Number(currentSaleQty) + Number(item.quantity);
+
+//       // Ensure saleQty is a valid number
+//       if (isNaN(saleQty)) {
+//         throw new Error("Invalid quantity value");
+//       }
+
+//       await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
+
+//       const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+
+//       // Check product variant availability in inventory and product list
+//       if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+//         await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
+//       }
+
+//       return {
+//         itemName: product.title,
+//         quantity: item.quantity,
+//         price: variant.price,
+//       };
+//     })
+//     );
+
+//     const subject = "Thank You for Your Purchase!";
+//     const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
+//     sendMailer(req.user.email, subject, message, res);
+
+//     // if (order_type === "PREPAID") {
+
+//     var razorPayIinstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
+
+//     const amount = Math.round(grandTotal * 100);
+
+//     const options = { amount: amount, currency: "INR", receipt: `${req.user.name}`, payment_capture: 1 };
+
+//     await razorPayIinstance.orders.create(options, async (error, response) => {
+
+//       if (error) {
+//         return res.status(500).json({ message: "Something Went Wrong!" });
+//       }
+
+//       const transactionData = {
+//         transaction_id: response.id,
+//         receipt: response.receipt,
+//         paid_amount: response.amount,
+//         currency: response.currency,
+//         status: response.status,
+//         order_id: newOrder._id,
+//       };
+
+//       const transaction = new Transaction(transactionData);
+//       await transaction.save();
+
+//       handleResponse(res, response, "Order has been successfully placed.", 201);
+
+//     });
+
+//   } catch (error) {
+//     console.log("error>>>>>>>", error);
+//     handleError(error.message, 400, res);
+//   }
+// };
 exports.create = async (req, res) => {
   try {
     const { products, address_id, shipping_charge, order_type, user_wallet_id, } = req.body;
@@ -213,87 +498,127 @@ exports.create = async (req, res) => {
     }
 
 
+    if (order_type === "PREPAID") {
+
+      var razorPayIinstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
+
+      const amount = Math.round(grandTotal * 100);
+
+      const options = { amount: amount, currency: "INR", receipt: `${req.user.name}`, payment_capture: 1 };
+
+      await razorPayIinstance.orders.create(options, async (error, response) => {
+
+        if (error) {
+          return res.status(500).json({ message: "Something Went Wrong!" });
+        }
 
 
+        await newOrder.save();
+
+        const transactionData = {
+          transaction_id: response.id,
+          receipt: response.receipt,
+          paid_amount: response.amount,
+          currency: response.currency,
+          status: response.status,
+          order_id: newOrder._id,
+        };
+
+        const transaction = new Transaction(transactionData);
+        await transaction.save();
 
 
-    await newOrder.save();
+        const getCoins = await UserWallet.findOne({ user_id: req.user._id });
+        await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
     
-    const getCoins = await UserWallet.findOne({ user_id: req.user._id });
-    await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
+        const orderItems = await Promise.all(products.map(async (item) => {
+    
+          const product = await Product.findOne({ _id: item.product_id });
+          const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
+    
+          product._doc.variant = variant;
+    
+          const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
+    
+          // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+          const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+          const saleQty = Number(currentSaleQty) + Number(item.quantity);
+    
+          // Ensure saleQty is a valid number
+          if (isNaN(saleQty)) {
+            throw new Error("Invalid quantity value");
+          }
+    
+          await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
+    
+          const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+    
+          // Check product variant availability in inventory and product list
+          if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+            await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
+          }
+    
+          return {
+            itemName: product.title,
+            quantity: item.quantity,
+            price: variant.price,
+          };
+        }));
+    
+        const subject = "Thank You for Your Purchase!";
+        const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
+        sendMailer(req.user.email, subject, message, res);
 
+        handleResponse(res, response, "Order has been successfully placed.", 201);
 
-    const orderItems = await Promise.all(products.map(async (item) => {
+      });
+    }
 
-      const product = await Product.findOne({ _id: item.product_id });
-      const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
+    else {
 
-      product._doc.variant = variant;
+      await newOrder.save();
 
-      const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
+      const orderItems = await Promise.all(products.map(async (item) => {
+    
+        const product = await Product.findOne({ _id: item.product_id });
+        const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
+  
+        product._doc.variant = variant;
+  
+        const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
+  
+        // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+        const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+        const saleQty = Number(currentSaleQty) + Number(item.quantity);
+  
+        // Ensure saleQty is a valid number
+        if (isNaN(saleQty)) {
+          throw new Error("Invalid quantity value");
+        }
+  
+        await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
+  
+        const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+  
+        // Check product variant availability in inventory and product list
+        if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+          await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
+        }
+  
+        return {
+          itemName: product.title,
+          quantity: item.quantity,
+          price: variant.price,
+        };
+      }));
 
-      // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
-      const currentSaleQty = getInventory?.sale_variant_quantity || 0;
-      const saleQty = Number(currentSaleQty) + Number(item.quantity);
+      const subject = "Thank You for Your Purchase!";
+      const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
+      sendMailer(req.user.email, subject, message, res);
 
-      // Ensure saleQty is a valid number
-      if (isNaN(saleQty)) {
-        throw new Error("Invalid quantity value");
-      }
-
-      await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
-
-      const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-
-      // Check product variant availability in inventory and product list
-      if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
-        await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
-      }
-
-      return {
-        itemName: product.title,
-        quantity: item.quantity,
-        price: variant.price,
-      };
-    })
-    );
-
-    const subject = "Thank You for Your Purchase!";
-    const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
-    sendMailer(req.user.email, subject, message, res);
-
-    // if (order_type === "PREPAID") {
-
-    var razorPayIinstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
-
-    const amount = Math.round(grandTotal * 100);
-
-    const options = { amount: amount, currency: "INR", receipt: `${req.user.name}`, payment_capture: 1 };
-
-    await razorPayIinstance.orders.create(options, async (error, response) => {
-
-      if (error) {
-        return res.status(500).json({ message: "Something Went Wrong!" });
-      }
-
-      const transactionData = {
-        transaction_id: response.id,
-        receipt: response.receipt,
-        paid_amount: response.amount,
-        currency: response.currency,
-        status: response.status,
-        order_id: newOrder._id,
-      };
-
-      const transaction = new Transaction(transactionData);
-      await transaction.save();
-
-      handleResponse(res, response, "Order has been successfully placed.", 201);
-
-    });
-
+      handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
+    }
   } catch (error) {
-    console.log("error>>>>>>>", error);
     handleError(error.message, 400, res);
   }
 };
