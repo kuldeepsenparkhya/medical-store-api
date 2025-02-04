@@ -75,3 +75,21 @@ exports.updateDocument = async (req, res) => {
         handleError(`Error updating document: ${error.message}`, 500, res);
     }
 };
+
+
+exports.getPrivacyPolicy = async (req, res) => {
+    try {
+
+        const document = await Document.findOne({ type: 'privacy_policy' });
+
+        if (!document) {
+            return handleError('Document not found.', 404, res);
+        }
+
+        handleResponse(res, document._doc, 'Privacy policy has been successfully retrieved.', 200);
+        
+    } catch (error) {
+        // Handle errors with detailed messages
+        handleError(`Error retrieving document: ${error.message}`, 500, res);
+    }
+};
