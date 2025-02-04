@@ -213,127 +213,87 @@ exports.create = async (req, res) => {
     }
 
 
-    if (order_type === "PREPAID") {
-
-      var razorPayIinstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
-
-      const amount = Math.round(grandTotal * 100);
-
-      const options = { amount: amount, currency: "INR", receipt: `${req.user.name}`, payment_capture: 1 };
-
-      await razorPayIinstance.orders.create(options, async (error, response) => {
-
-        if (error) {
-          return res.status(500).json({ message: "Something Went Wrong!" });
-        }
 
 
-        await newOrder.save();
-
-        const transactionData = {
-          transaction_id: response.id,
-          receipt: response.receipt,
-          paid_amount: response.amount,
-          currency: response.currency,
-          status: response.status,
-          order_id: newOrder._id,
-        };
-
-        const transaction = new Transaction(transactionData);
-        await transaction.save();
 
 
-        const getCoins = await UserWallet.findOne({ user_id: req.user._id });
-        await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
+    await newOrder.save();
     
-        const orderItems = await Promise.all(products.map(async (item) => {
-    
-          const product = await Product.findOne({ _id: item.product_id });
-          const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
-    
-          product._doc.variant = variant;
-    
-          const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
-    
-          // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
-          const currentSaleQty = getInventory?.sale_variant_quantity || 0;
-          const saleQty = Number(currentSaleQty) + Number(item.quantity);
-    
-          // Ensure saleQty is a valid number
-          if (isNaN(saleQty)) {
-            throw new Error("Invalid quantity value");
-          }
-    
-          await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
-    
-          const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-    
-          // Check product variant availability in inventory and product list
-          if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
-            await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
-          }
-    
-          return {
-            itemName: product.title,
-            quantity: item.quantity,
-            price: variant.price,
-          };
-        }));
-    
-        const subject = "Thank You for Your Purchase!";
-        const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
-        sendMailer(req.user.email, subject, message, res);
+    const getCoins = await UserWallet.findOne({ user_id: req.user._id });
+    await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
 
-        handleResponse(res, response, "Order has been successfully placed.", 201);
 
-      });
-    }
+    const orderItems = await Promise.all(products.map(async (item) => {
 
-    else {
+      const product = await Product.findOne({ _id: item.product_id });
+      const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
 
-      await newOrder.save();
+      product._doc.variant = variant;
 
-      const orderItems = await Promise.all(products.map(async (item) => {
-    
-        const product = await Product.findOne({ _id: item.product_id });
-        const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
-  
-        product._doc.variant = variant;
-  
-        const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
-  
-        // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
-        const currentSaleQty = getInventory?.sale_variant_quantity || 0;
-        const saleQty = Number(currentSaleQty) + Number(item.quantity);
-  
-        // Ensure saleQty is a valid number
-        if (isNaN(saleQty)) {
-          throw new Error("Invalid quantity value");
-        }
-  
-        await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
-  
-        const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-  
-        // Check product variant availability in inventory and product list
-        if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
-          await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
-        }
-  
-        return {
-          itemName: product.title,
-          quantity: item.quantity,
-          price: variant.price,
-        };
-      }));
+      const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
 
-      const subject = "Thank You for Your Purchase!";
-      const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
-      sendMailer(req.user.email, subject, message, res);
+      // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
+      const currentSaleQty = getInventory?.sale_variant_quantity || 0;
+      const saleQty = Number(currentSaleQty) + Number(item.quantity);
 
-      handleResponse(res, newOrder._doc, "Order has been successfully placed.", 201);
-    }
+      // Ensure saleQty is a valid number
+      if (isNaN(saleQty)) {
+        throw new Error("Invalid quantity value");
+      }
+
+      await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
+
+      const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
+
+      // Check product variant availability in inventory and product list
+      if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
+        await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
+      }
+
+      return {
+        itemName: product.title,
+        quantity: item.quantity,
+        price: variant.price,
+      };
+    })
+    );
+
+    const subject = "Thank You for Your Purchase!";
+    const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
+    sendMailer(req.user.email, subject, message, res);
+
+    // if (order_type === "PREPAID") {
+
+    var razorPayIinstance = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
+
+    const amount = Math.round(grandTotal * 100);
+
+    const options = { amount: amount, currency: "INR", receipt: `${req.user.name}`, payment_capture: 1 };
+
+    await razorPayIinstance.orders.create(options, async (error, response) => {
+
+      if (error) {
+        return res.status(500).json({ message: "Something Went Wrong!" });
+      }
+
+      const transactionData = {
+        transaction_id: response.id,
+        receipt: response.receipt,
+        paid_amount: response.amount,
+        currency: response.currency,
+        status: response.status,
+        order_id: newOrder._id,
+      };
+
+      const transaction = new Transaction(transactionData);
+      await transaction.save();
+
+      handleResponse(res, response, "Order has been successfully placed.", 201);
+
+    });
+
   } catch (error) {
+    console.log("error>>>>>>>", error);
     handleError(error.message, 400, res);
   }
 };
