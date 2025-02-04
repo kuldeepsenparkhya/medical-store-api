@@ -7,7 +7,7 @@ const { handleError } = require("../utils/helper");
 
 
 exports.authJWT = async (req, res, next) => {
-  const pathArray = ['/api/login', '/api/media','/api/documents/privacyPolicy', '/api/social/login', '/api/auth/google', '/api/verify/otp', '/api/update/password', '/api/organizations/login', '/api/register', '/api/forgotPassword', '/api/reset-password', '/api/organizations/reset-password', '/api/organizations/update-password', '/api/update-password', '/api/email-resend', '/api/organizations/register', '/subscribe']
+  const pathArray = ['/api/login', '/api/media', '/api/documents/privacyPolicy', '/api/documents/terms-of-conditions', '/api/documents/data-deletion-instructions', '/api/social/login', '/api/auth/google', '/api/verify/otp', '/api/update/password', '/api/organizations/login', '/api/register', '/api/forgotPassword', '/api/reset-password', '/api/organizations/reset-password', '/api/organizations/update-password', '/api/update-password', '/api/email-resend', '/api/organizations/register', '/subscribe']
 
   if (pathArray.includes(req.path))
     return next()

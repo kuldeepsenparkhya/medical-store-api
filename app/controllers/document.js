@@ -79,17 +79,45 @@ exports.updateDocument = async (req, res) => {
 
 exports.getPrivacyPolicy = async (req, res) => {
     try {
-
         const document = await Document.findOne({ type: 'privacy_policy' });
-
         if (!document) {
             return handleError('Document not found.', 404, res);
         }
-
         handleResponse(res, document._doc, 'Privacy policy has been successfully retrieved.', 200);
-        
+
     } catch (error) {
         // Handle errors with detailed messages
         handleError(`Error retrieving document: ${error.message}`, 500, res);
     }
 };
+
+
+exports.getTemsOfConditions = async (req, res) => {
+    try {
+        const document = await Document.findOne({ type: 'terms_of_conditions' });
+        if (!document) {
+            return handleError('Document not found.', 404, res);
+        }
+        handleResponse(res, document._doc, 'Terms and conditions has been successfully retrieved.', 200);
+
+    } catch (error) {
+        // Handle errors with detailed messages
+        handleError(`Error retrieving document: ${error.message}`, 500, res);
+    }
+};
+
+
+exports.getDataDeletionInstructions = async (req, res) => {
+    try {
+        const document = await Document.findOne({ type: 'data_deletion_instructions' });
+        if (!document) {
+            return handleError('Document not found.', 404, res);
+        }
+        handleResponse(res, document._doc, 'Data deletion instructions has been successfully retrieved.', 200);
+
+    } catch (error) {
+        // Handle errors with detailed messages
+        handleError(`Error retrieving document: ${error.message}`, 500, res);
+    }
+};
+
