@@ -218,7 +218,7 @@ const { isValidObjectId, default: mongoose } = require("mongoose");
 
 
 //     await newOrder.save();
-    
+
 //     const getCoins = await UserWallet.findOne({ user_id: req.user._id });
 //     await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
 
@@ -530,41 +530,41 @@ exports.create = async (req, res) => {
 
         const getCoins = await UserWallet.findOne({ user_id: req.user._id });
         await UserWallet.updateOne({ user_id: req.user._id }, { coins: getCoins.coins + assignedCoins }, { new: true });
-    
+
         const orderItems = await Promise.all(products.map(async (item) => {
-    
+
           const product = await Product.findOne({ _id: item.product_id });
           const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
-    
+
           product._doc.variant = variant;
-    
+
           const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
-    
+
           // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
           const currentSaleQty = getInventory?.sale_variant_quantity || 0;
           const saleQty = Number(currentSaleQty) + Number(item.quantity);
-    
+
           // Ensure saleQty is a valid number
           if (isNaN(saleQty)) {
             throw new Error("Invalid quantity value");
           }
-    
+
           await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
-    
+
           const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-    
+
           // Check product variant availability in inventory and product list
           if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
             await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
           }
-    
+
           return {
             itemName: product.title,
             quantity: item.quantity,
             price: variant.price,
           };
         }));
-    
+
         const subject = "Thank You for Your Purchase!";
         const message = orderConfirmationMail(req.user.name, newOrder._id, orderItems, subTotal, shipping_charge, grandTotal, order_type);
         sendMailer(req.user.email, subject, message, res);
@@ -579,32 +579,32 @@ exports.create = async (req, res) => {
       await newOrder.save();
 
       const orderItems = await Promise.all(products.map(async (item) => {
-    
+
         const product = await Product.findOne({ _id: item.product_id });
         const variant = await ProductVariant.findOne({ _id: item.product_variant_id, productId: item.product_id, });
-  
+
         product._doc.variant = variant;
-  
+
         const getInventory = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, });
-  
+
         // Initialize saleQty with a default value of 0 if getInventory or sale_variant_quantity is undefined
         const currentSaleQty = getInventory?.sale_variant_quantity || 0;
         const saleQty = Number(currentSaleQty) + Number(item.quantity);
-  
+
         // Ensure saleQty is a valid number
         if (isNaN(saleQty)) {
           throw new Error("Invalid quantity value");
         }
-  
+
         await Inventory.updateOne({ product_id: item.product_id, product_variant_id: item.product_variant_id, }, { sale_variant_quantity: saleQty }, { new: true });
-  
+
         const getUpdateInventorydata = await Inventory.findOne({ product_id: item.product_id, product_variant_id: item.product_variant_id });
-  
+
         // Check product variant availability in inventory and product list
         if (variant?.quantity === getUpdateInventorydata?.sale_variant_quantity) {
           await ProductVariant.updateOne({ productId: item.product_id, _id: item.product_variant_id }, { inStock: false }, { new: true });
         }
-  
+
         return {
           itemName: product.title,
           quantity: item.quantity,
@@ -1592,12 +1592,14 @@ exports.checkout = async (req, res) => {
   }
 };
 
+
+// --------------------------------------------- Get razorpay transactions by payment ID ------------------------------------------------------//
+
 exports.payment = async (req, res) => {
+
   const { paymentId } = req.params;
-  const razorpay = new Razorpay({
-    key_id: "rzp_test_GcZZFDPP0jHtC4",
-    key_secret: "6JdtQv2u7oUw7EWziYeyoewJ",
-  });
+
+  const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
 
   try {
     const payment = await razorpay.payments.fetch(paymentId);
@@ -1616,15 +1618,19 @@ exports.payment = async (req, res) => {
   }
 };
 
+
+// --------------------------------------------- Get razorpay transactions ------------------------------------------------------//
+
 exports.getAllPayments = async (req, res) => {
-  const razorpay = new Razorpay({
-    key_id: "rzp_test_GcZZFDPP0jHtC4",
-    key_secret: "6JdtQv2u7oUw7EWziYeyoewJ",
-  });
+  const { page, count } = req.query
+  const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_SECRET });
 
   try {
     // Fetch all payments
-    const payments = await razorpay.payments.all();
+    const payments = await razorpay.payments.all({
+      skip: (page - 1) * count,
+      count: count,
+    });
 
     // Check if payments are available
     if (!payments || !payments.items || payments.items.length === 0) {
@@ -1632,14 +1638,14 @@ exports.getAllPayments = async (req, res) => {
     }
 
     // Example of sending the first payment's details (adjust as necessary)
-    const payment = payments.items.map((item) => ({
-      status: item.status,
-      method: item.method,
-      amount: item.amount / 100,
-      currency: item.currency,
-    }));
+    // const payment = payments.items.map((item) => ({
+    //   status: item.status,
+    //   method: item.method,
+    //   amount: item.amount / 100,
+    //   currency: item.currency,
+    // }));
 
-    res.send({ payment });
+    res.send(payments );
 
     // res.json({
     //     status: payment.status,
@@ -1648,10 +1654,7 @@ exports.getAllPayments = async (req, res) => {
     //     currency: payment.currency,
     // });
   } catch (error) {
-    console.error("Error fetching payments:", error); // Log the error for debugging
-    res
-      .status(500)
-      .json({ message: "Failed to fetch payments", error: error.message });
+    res.status(500).json({ message: "Failed to fetch payments", error: error.message });
   }
 };
 
