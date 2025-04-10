@@ -14,15 +14,15 @@ const productSchema = Joi.object({
     quantity: Joi.number().required(), // Assuming quantity is a string in your schema
     consume_type: Joi.string()
         .valid('oral', 'topical', 'inhaled', 'sublingual', 'rectal', 'injection', 'nasal')
-        .required(),
-    return_policy: Joi.string().required(),
+        .optional(),
+    return_policy: Joi.string().optional(),
     product_category_id: Joi.string().hex().length(24).required(), // Validating ObjectId as a string with 24 hex characters
     health_category_id: Joi.string().hex().length(24).optional().allow(null), // Validating ObjectId as a string with 24 hex characters
 
     brand_id: Joi.string().hex().length(24).required(), // Validating ObjectId as a string with 24 hex characters
     media: Joi.array().items(mediaSchema).optional(),
-    expiry_date: Joi.date().required(),
-    manufacturing_date: Joi.date().required(),
+    expiry_date: Joi.date().optional(),
+    manufacturing_date: Joi.date(),
     inStock: Joi.boolean().default(true),
     sideEffects: Joi.optional()
 });

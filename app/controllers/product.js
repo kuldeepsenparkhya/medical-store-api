@@ -1068,6 +1068,7 @@ exports.getAllDeletedProducts = async (req, res) => {
 };
 
 
+
 exports.createBulkProducts = async (req, res) => {
     try {
         if (!req.file) {
@@ -1085,9 +1086,13 @@ exports.createBulkProducts = async (req, res) => {
                     // Map to accumulate data
                     const productMap = new Map();
                     // Accumulate product and variant data
-
                     products.forEach(async item => {
                         if (!productMap.has(item?.title)) {
+
+                            const media = item.product_image
+                                ? item.product_image.split(',').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) // Trim to remove extra spaces
+                                : [];
+
                             productMap.set(item?.title, {
                                 productData: {
                                     title: item?.title,
@@ -1096,59 +1101,77 @@ exports.createBulkProducts = async (req, res) => {
                                     consume_type: item?.consume_type,
                                     return_policy: item?.return_policy,
                                     expiry_date: item?.expiry_date,
-                                    manufacturing_date: item?.manufacturing_date,
+                                    manufacturing_date: item?.manufacturing_date ? new Date(item?.manufacturing_date) : null, // Ensure valid Date or null
                                     sideEffects: item?.sideEffects,
                                     brand_name: item?.brand_name,
                                     product_category: item?.product_category,
-                                    isRequirePrescription: item?.isRequirePrescription
+                                    isRequirePrescription: item?.isRequirePrescription && item?.isRequirePrescription !== "" ? item?.isRequirePrescription === "true" : false, // Default to false if missing or empty
                                 },
                                 variants: [],
-                                media: item.product_image ? [{ url: item?.product_image, mimetype: 'image/jpeg' }] : [],
+                                media: media,
                                 brochures: item.product_brochure ? [{ url: item?.product_brochure, mimetype: 'application/pdf' }] : [],
                             });
                         }
 
                         const productEntry = productMap.get(item.title);
 
-                        // Dynamically find variant fields
-                        let variantIndex = 1; // Start with the first variant
-                        while (item[`v${variantIndex}_size`]) {
+                        let variantIndex = 1;
+                        while (item[`v${variantIndex}_price`]) {
+                            const size = item[`v${variantIndex}_size`] || 'N/A'; // Use 'N/A' or `null` if size is missing
+                            const color = item[`v${variantIndex}_color`] || 'N/A'; // Use 'N/A' or `null` if color is missing
+                            console.log(`Variant ${variantIndex} - Size: ${size}, Color: ${color}`);
+
                             // Construct the discount name key dynamically
                             const discountNameKey = `v${variantIndex}_discount_name`;
                             const discountName = item[discountNameKey]; // Access the discount name for the current variant
-                            const discount = await Discount.findOne({ name: discountName });
+                            const discount = discountName ? await Discount.findOne({ name: discountName }) : null;
 
                             const variant = {
-                                size: item[`v${variantIndex}_size`],
-                                color: item[`v${variantIndex}_color`],
+                                size: size,
+                                color: color,
                                 price: item[`v${variantIndex}_price`],
                                 quantity: item[`v${variantIndex}_quantity`],
                                 discounted_id: discount ? discount._id : null, // Handle the case where no discount is found
                             };
 
-                            // Only add the variant if size and color exist
-                            if (variant.size) {
-                                productEntry.variants.push(variant);
-                            }
+                            console.log('Variant data:', variant); // Log the variant data for debugging
+
+                            // Add the variant to the product entry
+                            productEntry.variants.push(variant);
+
                             variantIndex++;
                         }
                     });
 
                     // Process all products and variants
                     const operations = Array.from(productMap.entries()).map(async ([title, { productData, variants, media, brochures }]) => {
-                        // Find brand and category
-                        const brand = await Brand.findOne({ name: { $regex: new RegExp('^' + productData.brand_name + '$', 'i') } });
-                        if (!brand) throw new Error(`${productData.brand_name} brand does not exist`);
 
-                        const productCategory = await ProductCategory.findOne({ name: { $regex: new RegExp('^' + productData.product_category + '$', 'i') } });
-                        if (!productCategory) throw new Error(`${productData.product_category} product Category does not exist`);
+
+                        console.log('variantsVVVVVVVVVVVV', variants);
+
+
+
+                        // Find or create brand
+                        let brand = await Brand.findOne({ name: { $regex: new RegExp('^' + productData.brand_name + '$', 'i') } });
+                        if (!brand) {
+                            brand = new Brand({ name: productData.brand_name });
+                            await brand.save();
+                        }
+
+                        // Find or create product category
+                        let productCategory = await ProductCategory.findOne({ name: { $regex: new RegExp('^' + productData.product_category + '$', 'i') } });
+                        if (!productCategory) {
+                            productCategory = new ProductCategory({ name: productData.product_category });
+                            await productCategory.save();
+                        }
 
                         // Create product
                         const product = new Product({
                             ...productData,
-                            brand_id: brand._id,
-                            product_category_id: productCategory._id,
+                            brand_id: brand._id, // Ensure brand ID is assigned
+                            product_category_id: productCategory._id, // Ensure category ID is assigned
                         });
+
                         await product.save();
 
                         // Create variants
@@ -1157,6 +1180,7 @@ exports.createBulkProducts = async (req, res) => {
                                 ...variant,
                                 productId: product._id
                             });
+
                             await newVariant.save();
 
                             // Create inventory record
@@ -1169,6 +1193,7 @@ exports.createBulkProducts = async (req, res) => {
                             const inventory = new Inventory(inventoryData);
                             await inventory.save();
                         });
+
                         await Promise.all(variantPromises);
 
                         // Handle media

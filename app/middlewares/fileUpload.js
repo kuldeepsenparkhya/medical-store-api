@@ -48,6 +48,8 @@ exports.fileUploader = (req, res, next) => {
   const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
+    lmits: { fileSize: 20 * 1024 * 1024 } // 20 MB
+
   });
 
   upload.single("files")(req, res, next);
