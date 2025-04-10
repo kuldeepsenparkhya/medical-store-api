@@ -1134,8 +1134,6 @@ exports.createBulkProducts = async (req, res) => {
                                 discounted_id: discount ? discount._id : null, // Handle the case where no discount is found
                             };
 
-                            console.log('Variant data:', variant); // Log the variant data for debugging
-
                             // Add the variant to the product entry
                             productEntry.variants.push(variant);
 
