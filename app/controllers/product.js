@@ -1090,7 +1090,7 @@ exports.createBulkProducts = async (req, res) => {
                         if (!productMap.has(item?.title)) {
 
                             const media = item.product_image
-                                ? item.product_image.split(',').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) // Trim to remove extra spaces
+                                ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) // Trim to remove extra spaces
                                 : [];
 
                             productMap.set(item?.title, {
@@ -1145,11 +1145,6 @@ exports.createBulkProducts = async (req, res) => {
 
                     // Process all products and variants
                     const operations = Array.from(productMap.entries()).map(async ([title, { productData, variants, media, brochures }]) => {
-
-
-                        console.log('variantsVVVVVVVVVVVV', variants);
-
-
 
                         // Find or create brand
                         let brand = await Brand.findOne({ name: { $regex: new RegExp('^' + productData.brand_name + '$', 'i') } });
