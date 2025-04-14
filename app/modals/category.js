@@ -5,7 +5,10 @@ const productCategorySchema = Schema({
   name: {
     type: String,
     required: true,
-    unique: true
+    trim: true,
+    set: (val) => {
+      return val.toLowerCase();
+    },
   },
   description: {
     type: String,

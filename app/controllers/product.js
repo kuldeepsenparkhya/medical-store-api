@@ -5,6 +5,7 @@ const fs = require('fs')
 const path = require("path");
 const { isValidObjectId } = require("mongoose");
 const csv = require('csv-parser'); // Make sure to install and require the 'csv-parser' package
+const AsyncLock = require("async-lock");
 
 
 exports.create = async (req, res) => {
@@ -1070,6 +1071,8 @@ exports.getAllDeletedProducts = async (req, res) => {
 
 
 exports.createBulkProducts = async (req, res) => {
+    const lock = new AsyncLock();
+
     try {
         if (!req.file) {
             return res.status(400).send({ message: 'No file uploaded.', error: true });
@@ -1077,6 +1080,15 @@ exports.createBulkProducts = async (req, res) => {
 
         const csvFilePath = req.file.path;
         const products = [];
+
+
+        function normalizeBrandName(name) {
+            return name ? name.trim().replace(/\s+/g, '_').toLowerCase() : 'unknown';
+        }
+
+        function normalizeCategoryName(name) {
+            return name ? name.trim().replace(/\s+/g, '_').toLowerCase() : 'unknown';
+        }
 
         fs.createReadStream(csvFilePath)
             .pipe(csv())
@@ -1087,40 +1099,35 @@ exports.createBulkProducts = async (req, res) => {
                     const productMap = new Map();
                     // Accumulate product and variant data
                     products.forEach(async item => {
-                        if (!productMap.has(item?.title)) {
 
-                            const media = item.product_image
-                                ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) // Trim to remove extra spaces
-                                : [];
+                        const media = item.product_image ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) : [];
 
-                            productMap.set(item?.title, {
-                                productData: {
-                                    title: item?.title,
-                                    sku: item?.sku,
-                                    description: item?.description,
-                                    consume_type: item?.consume_type,
-                                    return_policy: item?.return_policy,
-                                    expiry_date: item?.expiry_date,
-                                    manufacturing_date: item?.manufacturing_date ? new Date(item?.manufacturing_date) : null, // Ensure valid Date or null
-                                    sideEffects: item?.sideEffects,
-                                    brand_name: item?.brand_name,
-                                    product_category: item?.product_category,
-                                    isRequirePrescription: item?.isRequirePrescription && item?.isRequirePrescription !== "" ? item?.isRequirePrescription === "true" : false, // Default to false if missing or empty
-                                },
-                                variants: [],
-                                media: media,
-                                brochures: item.product_brochure ? [{ url: item?.product_brochure, mimetype: 'application/pdf' }] : [],
-                            });
-                        }
+                        productMap.set(item?.title, {
+                            productData: {
+                                title: item?.title ? item?.title : 'unknown',
+                                sku: item?.sku,
+                                description: item?.description,
+                                consume_type: item?.consume_type,
+                                return_policy: item?.return_policy,
+                                expiry_date: item?.expiry_date,
+                                manufacturing_date: item?.manufacturing_date ? new Date(item?.manufacturing_date) : null, // Ensure valid Date or null
+                                sideEffects: item?.sideEffects,
+                                brand_name: item?.brand_name,
+                                product_category: item?.product_category,
+                                isRequirePrescription: item?.isRequirePrescription && item?.isRequirePrescription !== "" ? item?.isRequirePrescription === "true" : false, // Default to false if missing or empty
+                            },
+                            variants: [],
+                            media: media,
+                            brochures: item.product_brochure ? [{ url: item?.product_brochure, mimetype: 'application/pdf' }] : [],
+                        });
 
                         const productEntry = productMap.get(item.title);
 
                         let variantIndex = 1;
+
                         while (item[`v${variantIndex}_price`]) {
                             const size = item[`v${variantIndex}_size`] || 'N/A'; // Use 'N/A' or `null` if size is missing
                             const color = item[`v${variantIndex}_color`] || 'N/A'; // Use 'N/A' or `null` if color is missing
-                            console.log(`Variant ${variantIndex} - Size: ${size}, Color: ${color}`);
-
                             // Construct the discount name key dynamically
                             const discountNameKey = `v${variantIndex}_discount_name`;
                             const discountName = item[discountNameKey]; // Access the discount name for the current variant
@@ -1143,22 +1150,59 @@ exports.createBulkProducts = async (req, res) => {
 
                     // Process all products and variants
                     const operations = Array.from(productMap.entries()).map(async ([title, { productData, variants, media, brochures }]) => {
-
                         // Find or create brand
-                        let brand = await Brand.findOne({ name: { $regex: new RegExp('^' + productData.brand_name + '$', 'i') } });
+
+                        const normalizedBrandName = normalizeBrandName(productData.brand_name);
+                        const normalizedCategoryName = normalizeCategoryName(productData.product_category);
+
+
+                        let brand = await Brand.findOne({ name: normalizedBrandName });
                         if (!brand) {
-                            brand = new Brand({ name: productData.brand_name });
+                            brand = new Brand({ name: normalizedCategoryName });
                             await brand.save();
                         }
 
-                        // Find or create product category
-                        let productCategory = await ProductCategory.findOne({ name: { $regex: new RegExp('^' + productData.product_category + '$', 'i') } });
+                        // Lock for brand creation or finding
+                        // let brand;
+                        // await lock.acquire(normalizedBrandName, async () => {
+                        //     brand = await Brand.findOne({ name: normalizedBrandName });
+
+                        //     if (!brand) {
+                        //         try {
+                        //             brand = new Brand({ name: normalizedBrandName });
+                        //             await brand.save();
+                        //         } catch (err) {
+                        //             if (err.code === 11000) {
+                        //                 // Another process inserted it, get it
+                        //                 brand = await Brand.findOne({ name: normalizedBrandName });
+                        //             } else {
+                        //                 throw err;
+                        //             }
+                        //         }
+                        //     }
+                        // });
+
+                        // // Find or create product category
+                        let productCategory = await ProductCategory.findOne({ name: productData.product_category });
+
                         if (!productCategory) {
-                            productCategory = new ProductCategory({ name: productData.product_category });
+                            productCategory = new ProductCategory({ name: productData.product_category ? productData.product_category : 'unknown' });
                             await productCategory.save();
                         }
+                        // Lock for product category creation or finding
+                        // let productCategory;
+                        // await lock.acquire(normalizedCategoryName, async () => {
+                        //     productCategory = await ProductCategory.findOne({
+                        //         name: { $regex: new RegExp('^' + productData.product_category + '$', 'i') }
+                        //     });
 
+                        //     if (!productCategory) {
+                        //         productCategory = new ProductCategory({ name: productData.product_category || 'unknown' });
+                        //         await productCategory.save();
+                        //     }
+                        // });
                         // Create product
+
                         const product = new Product({
                             ...productData,
                             brand_id: brand._id, // Ensure brand ID is assigned

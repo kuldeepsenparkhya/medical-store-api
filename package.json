@@ -10,6 +10,7 @@
   "author": "PS",
   "license": "ISC",
   "dependencies": {
+    "async-lock": "^1.4.1",
     "axios": "^1.7.4",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
