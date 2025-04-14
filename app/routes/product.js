@@ -9,6 +9,7 @@ module.exports = app => {
 
     router.post('/products/bulk/insert', authJWT, adminAccess, bulkFileUploadProduct, products.createBulkProducts)
 
+
     router.get('/products/minimum/discounted', products.getMinimumDiscountedProducts)
 
     router.get('/products', products.find)
@@ -24,4 +25,19 @@ module.exports = app => {
 
 
     app.use('/api', router);
+
+
+    router.post('/products/verfy', authJWT, adminAccess, bulkFileUploadProduct, products.verifyUploadedCSVProducts)
+
+
+
+    // router.get('/download/report', products.downloadUploadReport);
+
+    router.get('/download/report/success', products.downloadSuccessReport);
+    router.get('/download/report/error', products.downloadErrorReport);
+    router.get('/download/allProducts', products.triggerProductCSVExport);
+
+    
+
+
 }

@@ -1,11 +1,14 @@
 const { handleError, handleResponse, getPagination, getProducts } = require("../utils/helper");
 const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct } = require("../modals");
+const { exportProductsToCSV } = require('../utils/helper');
 
 const fs = require('fs')
 const path = require("path");
 const { isValidObjectId } = require("mongoose");
 const csv = require('csv-parser'); // Make sure to install and require the 'csv-parser' package
 const AsyncLock = require("async-lock");
+const fastCsv = require('fast-csv');
+const { Parser } = require("json2csv");
 
 
 exports.create = async (req, res) => {
@@ -1275,6 +1278,7 @@ exports.createBulkProducts = async (req, res) => {
 */
 
 
+
 exports.createBulkProducts = async (req, res) => {
     try {
         if (!req.file) {
@@ -1283,76 +1287,48 @@ exports.createBulkProducts = async (req, res) => {
 
         const csvFilePath = req.file.path;
         const products = [];
+        const successfulUploads = [];
+        const failedUploads = [];
 
-        function normalizeName(name) {
-            return name ? name.trim().replace(/\s+/g, '_').toLowerCase() : 'unknown';
-        }
+        const normalizeName = name => name ? name.trim().replace(/\s+/g, '_').toLowerCase() : 'unknown';
 
         fs.createReadStream(csvFilePath)
             .pipe(csv())
             .on('data', (data) => products.push(data))
             .on('end', async () => {
-                try {
-                    const productMap = new Map();
+                for (const item of products) {
+                    try {
+                        const media = item.product_image
+                            ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' }))
+                            : [];
 
-                    for (const item of products) {
-                        const media = item.product_image ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) : [];
+                        const brochures = item.product_brochure
+                            ? [{ url: item.product_brochure, mimetype: 'application/pdf' }]
+                            : [];
 
-                        productMap.set(item?.title, {
-                            productData: {
-                                title: item?.title || 'unknown',
-                                sku: item?.sku,
-                                description: item?.description,
-                                consume_type: item?.consume_type,
-                                return_policy: item?.return_policy,
-                                expiry_date: item?.expiry_date,
-                                manufacturing_date: item?.manufacturing_date ? new Date(item.manufacturing_date) : null,
-                                sideEffects: item?.sideEffects,
-                                brand_name: item?.brand_name,
-                                product_category: item?.product_category,
-                                isRequirePrescription: item?.isRequirePrescription?.toLowerCase() === "true" || false,
-                            },
-                            variants: [],
-                            media,
-                            brochures: item.product_brochure ? [{ url: item.product_brochure, mimetype: 'application/pdf' }] : [],
-                        });
+                        const productData = {
+                            title: item?.title || 'unknown',
+                            sku: item?.sku,
+                            description: item?.description,
+                            consume_type: item?.consume_type,
+                            return_policy: item?.return_policy,
+                            expiry_date: item?.expiry_date,
+                            manufacturing_date: item?.manufacturing_date ? new Date(item.manufacturing_date) : null,
+                            sideEffects: item?.sideEffects,
+                            brand_name: item?.brand_name,
+                            product_category: item?.product_category,
+                            isRequirePrescription: item?.isRequirePrescription?.toLowerCase() === "true" || false,
+                        };
 
-                        const productEntry = productMap.get(item.title);
-                        let variantIndex = 1;
-
-                        while (item[`v${variantIndex}_price`]) {
-                            const discountName = item[`v${variantIndex}_discount_name`];
-                            const discount = discountName ? await Discount.findOne({ name: discountName }) : null;
-
-                            productEntry.variants.push({
-                                size: item[`v${variantIndex}_size`] || 'N/A',
-                                color: item[`v${variantIndex}_color`] || 'N/A',
-                                price: item[`v${variantIndex}_price`],
-                                quantity: item[`v${variantIndex}_quantity`],
-                                discounted_id: discount ? discount._id : null,
-                            });
-
-                            variantIndex++;
-                        }
-                    }
-
-                    for (const [title, { productData, variants, media, brochures }] of productMap.entries()) {
                         const normalizedBrand = normalizeName(productData.brand_name);
                         const normalizedCategory = normalizeName(productData.product_category);
 
-                        // Find or create brand
                         let brand = await Brand.findOne({ name: normalizedBrand });
-                        if (!brand) {
-                            brand = await new Brand({ name: normalizedBrand }).save();
-                        }
+                        if (!brand) brand = await new Brand({ name: normalizedBrand }).save();
 
-                        // Find or create category
                         let category = await ProductCategory.findOne({ name: normalizedCategory });
-                        if (!category) {
-                            category = await new ProductCategory({ name: normalizedCategory }).save();
-                        }
+                        if (!category) category = await new ProductCategory({ name: normalizedCategory }).save();
 
-                        // Create product
                         const product = new Product({
                             ...productData,
                             brand_id: brand._id,
@@ -1361,42 +1337,364 @@ exports.createBulkProducts = async (req, res) => {
 
                         await product.save();
 
-                        // Create variants + inventory
-                        for (const variant of variants) {
-                            const newVariant = await new ProductVariant({
-                                ...variant,
-                                productId: product._id
+                        let variantIndex = 1;
+                        while (item[`v${variantIndex}_price`]) {
+                            const discountName = item[`v${variantIndex}_discount_name`];
+                            const discount = discountName ? await Discount.findOne({ name: discountName }) : null;
+
+                            const variant = await new ProductVariant({
+                                size: item[`v${variantIndex}_size`] || 'N/A',
+                                color: item[`v${variantIndex}_color`] || 'N/A',
+                                price: item[`v${variantIndex}_price`],
+                                quantity: item[`v${variantIndex}_quantity`],
+                                discounted_id: discount ? discount._id : null,
+                                productId: product._id,
                             }).save();
 
                             await new Inventory({
-                                product_variant_id: newVariant._id,
+                                product_variant_id: variant._id,
                                 product_id: product._id,
-                                total_variant_quantity: variant.quantity,
+                                total_variant_quantity: item[`v${variantIndex}_quantity`],
                                 sale_variant_quantity: 0,
                             }).save();
+
+                            variantIndex++;
                         }
 
-                        // Media
                         if (media.length) {
                             await Promise.all(media.map(file => new Media({ ...file, product_id: product._id }).save()));
                         }
 
-                        // Brochures
                         if (brochures.length) {
                             await Promise.all(brochures.map(file => new Brochure({ ...file, product_id: product._id }).save()));
                         }
+
+                        // Log and save success
+                        // console.log(`Uploaded product: ${product.title}`);
+                        successfulUploads.push(item);
+                    } catch (err) {
+                        // Log and save failure with error message
+                        console.error(`Failed to upload product "${item.title}": ${err.message}`);
+                        failedUploads.push({ ...item, error: err.message });
                     }
-
-                    return res.status(200).send({ message: 'File processed and data inserted successfully.', error: false });
-
-                } catch (error) {
-                    console.error('Processing error:', error);
-                    return res.status(400).send({ message: error.message, error: true });
                 }
+
+                // Create reports directory if not exists
+                const reportsDir = path.join(__dirname, '../reports');
+                fs.mkdirSync(reportsDir, { recursive: true });
+
+                // Write successful uploads to CSV
+                if (successfulUploads.length) {
+                    const successFields = Object.keys(successfulUploads[0]);
+                    const successParser = new Parser({ fields: successFields });
+                    const successCsv = successParser.parse(successfulUploads);
+                    fs.writeFileSync(path.join(reportsDir, 'successful_upload_report.csv'), successCsv);
+                }
+
+                // Write failed uploads with error
+                if (failedUploads.length) {
+                    const failFields = Object.keys(failedUploads[0]);
+                    const failParser = new Parser({ fields: failFields });
+                    const failCsv = failParser.parse(failedUploads);
+                    fs.writeFileSync(path.join(reportsDir, 'unsuccessful_upload_report.csv'), failCsv);
+                }
+
+                // return res.status(200).send({
+                //     message: 'Upload processing complete.',
+                //     successCount: successfulUploads.length,
+                //     failedCount: failedUploads.length,
+                //     successReport: '/reports/successful_upload_report.csv',
+                //     ...(failedUploads.length > 0 && {
+                //         errorReport: '/reports/unsuccessful_upload_report.csv',
+                //         failedData: failedUploads
+                //     }),
+                //     error: false
+                // });
+
+
+                return res.status(200).send({
+                    message: 'Upload processing complete.',
+                    successCount: successfulUploads.length,
+                    failedCount: failedUploads.length,
+                    successReport: successfulUploads.length ? `${process.env.BASE_URL}/download/report/success` : null,
+                    errorReport: failedUploads.length ? `${process.env.BASE_URL}/download/report/error` : null,
+                    error: false
+                });
+
             });
 
     } catch (error) {
-        console.error('Outer error:', error);
-        return res.status(500).send({ message: 'Internal server error during file processing.', error: true });
+        console.error(' Fatal Error:', error);
+        return res.status(500).send({ message: 'Internal server error.', error: true });
+    }
+};
+
+
+// Download unsuccessful (failed) products report
+// exports.downloadUploadReport = async (req, res) => {
+//     const { type } = req.query; 
+
+//     if (!type || (type !== 'success' && type !== 'error')) {
+//         return res.status(400).send({
+//             message: 'Invalid or missing report type. Use ?type=success or ?type=error.',
+//             error: true
+//         });
+//     }
+
+//     const fileName = type === 'success' ? 'successful_upload_report.csv' : 'unsuccessful_upload_report.csv';
+//     const reportPath = path.join(__dirname, `../reports/${fileName}`);
+
+//     if (fs.existsSync(reportPath)) {
+//         return res.download(reportPath, fileName);
+//     } else {
+//         return res.status(404).send({
+//             message: `No ${type === 'success' ? 'successful' : 'failed'} product report available.`,
+//             error: true
+//         });
+//     }
+// };
+
+
+exports.downloadSuccessReport = async (req, res) => {
+    const reportPath = path.join(__dirname, '../reports/successful_upload_report.csv');
+    if (fs.existsSync(reportPath)) {
+        res.download(reportPath, 'successful_upload_report.csv');
+    } else {
+        res.status(404).send({
+            message: 'No successful upload report available.',
+            error: true
+        });
+    }
+};
+
+exports.downloadErrorReport = async (req, res) => {
+    const reportPath = path.join(__dirname, '../reports/unsuccessful_upload_report.csv');
+    if (fs.existsSync(reportPath)) {
+        res.download(reportPath, 'unsuccessful_upload_report.csv');
+    } else {
+        res.status(404).send({
+            message: 'No failed upload report available.',
+            error: true
+        });
+    }
+};
+
+exports.verifyUploadedCSVProducts = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send({ message: "No file uploaded", error: true });
+        }
+
+        const uploadedFilePath = req.file.path;
+        const uploadedProducts = [];
+
+        fs.createReadStream(uploadedFilePath)
+            .pipe(csv())
+            .on("data", (row) => uploadedProducts.push(row))
+            .on("end", async () => {
+                const reportData = [];
+
+                for (const row of uploadedProducts) {
+                    let status = "Not Found";
+
+                    const brand = await Brand.findOne({ name: row.brand_name?.trim().toLowerCase().replace(/\s+/g, "_") });
+                    const category = await ProductCategory.findOne({ name: row.product_category?.trim().toLowerCase().replace(/\s+/g, "_") });
+
+                    if (brand && category) {
+                        const product = await Product.findOne({
+                            title: row.title,
+                            sku: row.sku,
+                            brand_id: brand._id,
+                            product_category_id: category._id,
+                            description: row.description
+                        });
+
+                        if (product) {
+                            const mediaMatch = row.product_image
+                                ? await Media.findOne({ product_id: product._id, url: row.product_image.split("|")[0]?.trim() })
+                                : null;
+
+                            const discount = row.v1_discount_name
+                                ? await Discount.findOne({ name: row.v1_discount_name })
+                                : null;
+
+                            const variantMatch = await ProductVariant.findOne({
+                                productId: product._id,
+                                price: parseFloat(row.v1_price),
+                                quantity: parseInt(row.v1_quantity),
+                                discounted_id: discount ? discount._id : null,
+                            });
+
+                            if (variantMatch && (row.product_image ? mediaMatch : true)) {
+                                status = "Uploaded";
+                            } else {
+                                status = "Partial Match";
+                            }
+                        }
+                    }
+
+                    reportData.push({
+                        ...row,
+                        status
+                    });
+                }
+
+                // Ensure reports directory exists
+                const reportsDir = path.join(__dirname, "../reports");
+                if (!fs.existsSync(reportsDir)) {
+                    fs.mkdirSync(reportsDir, { recursive: true });
+                }
+
+                // Generate CSV
+                const csvFields = Object.keys(reportData[0] || {});
+                const json2csvParser = new Parser({ fields: csvFields });
+                const csvData = json2csvParser.parse(reportData);
+
+                const outputPath = path.join(reportsDir, "verify_upload_report.csv");
+                fs.writeFileSync(outputPath, csvData);
+
+                res.download(outputPath, "verify_upload_report.csv");
+            });
+    } catch (err) {
+        console.error("Verification error:", err);
+        res.status(500).json({ message: "Internal server error", error: true });
+    }
+};
+
+
+
+// exports.exportProductsToCSV = async () => {
+//     const limit = 1000;
+//     const filterDeleted = { isDeleted: false };
+//     let page = 0;
+//     let hasMore = true;
+//     const exportDir = path.join(__dirname, '../product_exports');
+
+//     // Create export folder if not exists
+//     fs.mkdirSync(exportDir, { recursive: true });
+
+//     while (hasMore) {
+//         const skip = page * limit;
+
+//         // Aggregation pipeline similar to your getAllProducts
+//         const pipeline = [
+//             { $match: filterDeleted },
+//             { $skip: skip },
+//             { $limit: limit },
+//             {
+//                 $lookup: {
+//                     from: 'brands',
+//                     localField: 'brand_id',
+//                     foreignField: '_id',
+//                     as: 'brand'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'productcategories',
+//                     localField: 'product_category_id',
+//                     foreignField: '_id',
+//                     as: 'productCategory'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'healthcategories',
+//                     localField: 'health_category_id',
+//                     foreignField: '_id',
+//                     as: 'healthCategory'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'variants',
+//                     localField: '_id',
+//                     foreignField: 'productId',
+//                     as: 'variant'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'media',
+//                     localField: '_id',
+//                     foreignField: 'product_id',
+//                     as: 'mediaFiles'
+//                 }
+//             },
+//             {
+//                 $lookup: {
+//                     from: 'brochures',
+//                     localField: '_id',
+//                     foreignField: 'product_id',
+//                     as: 'brochures'
+//                 }
+//             },
+//             { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+//             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+//             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } },
+//         ];
+
+//         const products = await Product.aggregate(pipeline);
+
+//         if (!products.length) {
+//             hasMore = false;
+//             break;
+//         }
+
+//         // Attach discount info to each variant
+//         const productsWithDetails = await Promise.all(products.map(async (product) => {
+//             const variantList = await Promise.all((product.variant || []).map(async (variant) => {
+//                 const discount = variant.discounted_id
+//                     ? await Discount.findById(variant.discounted_id).lean()
+//                     : null;
+//                 return {
+//                     ...variant,
+//                     discount_name: discount?.name || '',
+//                     discount_percentage: discount?.percentage || '',
+//                 };
+//             }));
+
+//             return {
+//                 title: product.title,
+//                 sku: product.sku,
+//                 description: product.description,
+//                 brand: product.brand?.name || '',
+//                 category: product.productCategory?.name || '',
+//                 health_category: product.healthCategory?.name || '',
+//                 return_policy: product.return_policy,
+//                 expiry_date: product.expiry_date,
+//                 manufacturing_date: product.manufacturing_date,
+//                 consume_type: product.consume_type,
+//                 isRequirePrescription: product.isRequirePrescription,
+//                 sideEffects: product.sideEffects,
+//                 mediaFiles: product.mediaFiles?.map(m => m.url).join('|'),
+//                 brochures: product.brochures?.map(b => b.url).join('|'),
+//                 variants: variantList.map(v => `Size: ${v.size}, Color: ${v.color}, Price: ${v.price}, Qty: ${v.quantity}, Discount: ${v.discount_name} (${v.discount_percentage}%)`).join(' | ')
+//             };
+//         }));
+
+//         // Convert to CSV
+//         const csvFields = Object.keys(productsWithDetails[0] || {});
+//         const parser = new Parser({ fields: csvFields });
+//         const csv = parser.parse(productsWithDetails);
+
+//         // Save file
+//         const filePath = path.join(exportDir, `product_export_page_${page + 1}.csv`);
+//         fs.writeFileSync(filePath, csv);
+
+//         console.log(`✅ Exported ${productsWithDetails.length} products to: ${filePath}`);
+//         page++;
+//     }
+
+//     return 'Product export completed.';
+// };
+
+exports.triggerProductCSVExport = async (req, res) => {
+    try {
+        const result = await exportProductsToCSV();
+        res.status(200).send({ message: result, error: false });
+    } catch (err) {
+        console.error('CSV Export Error:', err);
+        res.status(500).send({ message: 'Failed to export products.', error: true });
     }
 };

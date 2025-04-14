@@ -6,12 +6,13 @@ const fs = require('fs');
 const path = require('path'); // Import the path module
 const puppeteer = require('puppeteer');
 const Handlebars = require('handlebars');
-
+const { Parser } = require('json2csv');
 
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
-const { Product } = require('../modals');
+// const { Product } = require('../modals');
 const moment = require('moment');
 const { log } = require('console');
+const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct,HealthCategory,Variant } = require("../modals");
 
 
 exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({ ...data, error: false, message: message });
@@ -588,3 +589,64 @@ exports.orderNotifiationEmail = async (name, orderID, orderItems, subTotal, ship
     `;
     return message
 }
+
+
+
+
+
+// Function that handles CSV export
+async function exportProductsToCSV() {
+    const limit = 1000;
+    let page = 0;
+    let exportedCount = 0;
+    const EXPORT_FOLDER = path.join(__dirname, '../reports');
+
+    while (true) {
+        const skip = page * limit;
+        const products = await fetchProducts(skip, limit);
+        if (products.length === 0) break;
+
+        const csvData = convertToCSV(products);
+        const filePath = path.join(EXPORT_FOLDER, `product_export_page_${page + 1}.csv`);
+        fs.writeFileSync(filePath, csvData);
+        exportedCount += products.length;
+        page++;
+    }
+
+    return `${exportedCount} products exported to CSV in ${page} file(s).`;
+}
+
+// Fetch Products (used within exportProductsToCSV)
+async function fetchProducts(skip = 0, limit = 1000) {
+    try {
+        return await Product.find({ isDeleted: false })
+            .populate('brand_id product_category_id health_category_id')
+            .populate({ path: 'variant', strictPopulate: false, populate: { path: 'discounted_id' } })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        throw new Error('Unable to fetch products from database.');
+    }
+}
+
+function convertToCSV(products) {
+    const flatData = products.map(product => ({
+        id: product._id,
+        title: product.title,
+        sku: product.sku,
+        description: product.description,
+        price: product.price,
+        brand: product.brand_id?.name || '',
+        category: product.product_category_id?.name || '',
+        healthCategory: product.health_category_id?.name || '',
+        createdAt: product.createdAt,
+    }));
+
+    const parser = new Parser();
+    return parser.parse(flatData);
+}
+
+module.exports = { exportProductsToCSV }; 
+
