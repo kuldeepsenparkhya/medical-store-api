@@ -1069,7 +1069,7 @@ exports.getAllDeletedProducts = async (req, res) => {
 };
 
 
-
+/*
 exports.createBulkProducts = async (req, res) => {
     const lock = new AsyncLock();
 
@@ -1270,5 +1270,133 @@ exports.createBulkProducts = async (req, res) => {
     } catch (error) {
         console.error('Error occurred:', error);
         res.status(500).send({ message: 'Error occurred while processing the CSV file', error: true });
+    }
+};
+*/
+
+
+exports.createBulkProducts = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send({ message: 'No file uploaded.', error: true });
+        }
+
+        const csvFilePath = req.file.path;
+        const products = [];
+
+        function normalizeName(name) {
+            return name ? name.trim().replace(/\s+/g, '_').toLowerCase() : 'unknown';
+        }
+
+        fs.createReadStream(csvFilePath)
+            .pipe(csv())
+            .on('data', (data) => products.push(data))
+            .on('end', async () => {
+                try {
+                    const productMap = new Map();
+
+                    for (const item of products) {
+                        const media = item.product_image ? item.product_image.split('|').map(url => ({ url: url.trim(), mimetype: 'image/jpeg' })) : [];
+
+                        productMap.set(item?.title, {
+                            productData: {
+                                title: item?.title || 'unknown',
+                                sku: item?.sku,
+                                description: item?.description,
+                                consume_type: item?.consume_type,
+                                return_policy: item?.return_policy,
+                                expiry_date: item?.expiry_date,
+                                manufacturing_date: item?.manufacturing_date ? new Date(item.manufacturing_date) : null,
+                                sideEffects: item?.sideEffects,
+                                brand_name: item?.brand_name,
+                                product_category: item?.product_category,
+                                isRequirePrescription: item?.isRequirePrescription?.toLowerCase() === "true" || false,
+                            },
+                            variants: [],
+                            media,
+                            brochures: item.product_brochure ? [{ url: item.product_brochure, mimetype: 'application/pdf' }] : [],
+                        });
+
+                        const productEntry = productMap.get(item.title);
+                        let variantIndex = 1;
+
+                        while (item[`v${variantIndex}_price`]) {
+                            const discountName = item[`v${variantIndex}_discount_name`];
+                            const discount = discountName ? await Discount.findOne({ name: discountName }) : null;
+
+                            productEntry.variants.push({
+                                size: item[`v${variantIndex}_size`] || 'N/A',
+                                color: item[`v${variantIndex}_color`] || 'N/A',
+                                price: item[`v${variantIndex}_price`],
+                                quantity: item[`v${variantIndex}_quantity`],
+                                discounted_id: discount ? discount._id : null,
+                            });
+
+                            variantIndex++;
+                        }
+                    }
+
+                    for (const [title, { productData, variants, media, brochures }] of productMap.entries()) {
+                        const normalizedBrand = normalizeName(productData.brand_name);
+                        const normalizedCategory = normalizeName(productData.product_category);
+
+                        // Find or create brand
+                        let brand = await Brand.findOne({ name: normalizedBrand });
+                        if (!brand) {
+                            brand = await new Brand({ name: normalizedBrand }).save();
+                        }
+
+                        // Find or create category
+                        let category = await ProductCategory.findOne({ name: normalizedCategory });
+                        if (!category) {
+                            category = await new ProductCategory({ name: normalizedCategory }).save();
+                        }
+
+                        // Create product
+                        const product = new Product({
+                            ...productData,
+                            brand_id: brand._id,
+                            product_category_id: category._id,
+                        });
+
+                        await product.save();
+
+                        // Create variants + inventory
+                        for (const variant of variants) {
+                            const newVariant = await new ProductVariant({
+                                ...variant,
+                                productId: product._id
+                            }).save();
+
+                            await new Inventory({
+                                product_variant_id: newVariant._id,
+                                product_id: product._id,
+                                total_variant_quantity: variant.quantity,
+                                sale_variant_quantity: 0,
+                            }).save();
+                        }
+
+                        // Media
+                        if (media.length) {
+                            await Promise.all(media.map(file => new Media({ ...file, product_id: product._id }).save()));
+                        }
+
+                        // Brochures
+                        if (brochures.length) {
+                            await Promise.all(brochures.map(file => new Brochure({ ...file, product_id: product._id }).save()));
+                        }
+                    }
+
+                    return res.status(200).send({ message: 'File processed and data inserted successfully.', error: false });
+
+                } catch (error) {
+                    console.error('Processing error:', error);
+                    return res.status(400).send({ message: error.message, error: true });
+                }
+            });
+
+    } catch (error) {
+        console.error('Outer error:', error);
+        return res.status(500).send({ message: 'Internal server error during file processing.', error: true });
     }
 };
