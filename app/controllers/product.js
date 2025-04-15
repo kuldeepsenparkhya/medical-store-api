@@ -9,6 +9,12 @@ const csv = require('csv-parser'); // Make sure to install and require the 'csv-
 const AsyncLock = require("async-lock");
 const fastCsv = require('fast-csv');
 const { Parser } = require("json2csv");
+const { createObjectCsvStringifier } = require('csv-writer');
+
+
+
+
+
 
 
 exports.create = async (req, res) => {
@@ -1558,5 +1564,157 @@ exports.verifyUploadedCSVProducts = async (req, res) => {
     } catch (err) {
         console.error("Verification error:", err);
         res.status(500).json({ message: "Internal server error", error: true });
+    }
+};
+
+
+exports.generateAndDownloadCSV = async (req, res) => {
+    try {
+        let { start = 0, end = 1000 } = req.query;
+        start = parseInt(start);
+        end = parseInt(end);
+        if (isNaN(start) || isNaN(end) || start < 0 || end <= start) {
+            return res.status(400).json({ error: true, message: 'Invalid range parameters' });
+        }
+        const limit = end - start;
+        const products = await Product.aggregate([
+            { $match: { isDeleted: false } },
+            { $sort: { createdAt: 1 } },
+            { $skip: start },
+            { $limit: limit },
+            {
+                $lookup: {
+                    from: 'variants',
+                    localField: '_id',
+                    foreignField: 'productId',
+                    as: 'variant',
+                },
+            },
+            {
+                $lookup: {
+                    from: 'brochures',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'brochures'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'media',
+                    localField: '_id',
+                    foreignField: 'product_id',
+                    as: 'mediaFiles'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'brands',
+                    localField: 'brand_id',
+                    foreignField: '_id',
+                    as: 'brand'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'productcategories',
+                    localField: 'product_category_id',
+                    foreignField: '_id',
+                    as: 'productCategory'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'healthcategories',
+                    localField: 'health_category_id',
+                    foreignField: '_id',
+                    as: 'healthCategory'
+                }
+            },
+            { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } }
+        ]);
+        const csvStringifier = createObjectCsvStringifier({
+            header: [
+                { id: 'title', title: 'title' },
+                { id: 'sku', title: 'sku' },
+                { id: 'description', title: 'description' },
+                { id: 'consume_type', title: 'consume_type' },
+                { id: 'return_policy', title: 'return_policy' },
+                { id: 'expiry_date', title: 'expiry_date' },
+                { id: 'manufacturing_date', title: 'manufacturing_date' },
+                { id: 'sideEffects', title: 'sideEffects' },
+                { id: 'brand_name', title: 'brand_name' },
+                { id: 'product_category', title: 'product_category' },
+                { id: 'product_image', title: 'product_image' },
+                { id: 'product_brochure', title: 'product_brochure' },
+                { id: 'isRequirePrescription', title: 'isRequirePrescription' },
+                { id: 'v1_size', title: 'v1_size' },
+                { id: 'v1_color', title: 'v1_color' },
+                { id: 'v1_price', title: 'v1_price' },
+                { id: 'v1_quantity', title: 'v1_quantity' },
+                { id: 'v1_discount_name', title: 'v1_discount_name' },
+                { id: 'v2_size', title: 'v2_size' },
+                { id: 'v2_color', title: 'v2_color' },
+                { id: 'v2_price', title: 'v2_price' },
+                { id: 'v2_quantity', title: 'v2_quantity' },
+                { id: 'v2_discount_name', title: 'v2_discount_name' },
+                { id: 'v3_size', title: 'v3_size' },
+                { id: 'v3_color', title: 'v3_color' },
+                { id: 'v3_price', title: 'v3_price' },
+                { id: 'v3_quantity', title: 'v3_quantity' },
+                { id: 'v3_discount_name', title: 'v3_discount_name' }
+            ]
+        });
+        const records = await Promise.all(products.map(async (p) => {
+            const variant = p.variant || [];
+            const discountNames = await Promise.all(variant.map(async (v) => {
+                if (v.discounted_id) {
+                    const discount = await Discount.findById(v.discounted_id);
+                    return discount ? discount.name : '';
+                }
+                return '';
+            }));
+            return {
+                title: p.title || '',
+                sku: p.sku || '',
+                description: p.description || '',
+                consume_type: p.consume_type || '',
+                return_policy: p.return_policy || '',
+                expiry_date: p.expiry_date || '',
+                manufacturing_date: p.manufacturing_date || '',
+                sideEffects: (p.sideEffects || []).join(', '),
+                brand_name: p.brand?.name || '',
+                product_category: p.productCategory?.name || '',
+                product_image: (p.mediaFiles || []).map(img => img.url).join(' | ') || '',
+                product_brochure: p.brochures?.[0]?.url || '',
+                isRequirePrescription: p.isRequirePrescription ? 'true' : 'false',
+                v1_size: variant[0]?.size || '',
+                v1_color: variant[0]?.color || '',
+                v1_price: variant[0]?.price || '',
+                v1_quantity: variant[0]?.quantity || '',
+                v1_discount_name: discountNames[0] || '',
+                v2_size: variant[1]?.size || '',
+                v2_color: variant[1]?.color || '',
+                v2_price: variant[1]?.price || '',
+                v2_quantity: variant[1]?.quantity || '',
+                v2_discount_name: discountNames[1] || '',
+                v3_size: variant[2]?.size || '',
+                v3_color: variant[2]?.color || '',
+                v3_price: variant[2]?.price || '',
+                v3_quantity: variant[2]?.quantity || '',
+                v3_discount_name: discountNames[2] || ''
+            };
+        }));
+        // Set headers and stream to browser
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="products_export.csv"');
+        // Write CSV to response stream
+        res.write(csvStringifier.getHeaderString());
+        res.write(csvStringifier.stringifyRecords(records));
+        res.end();
+    } catch (err) {
+        console.error('CSV generation and download error:', err);
+        res.status(500).json({ error: true, message: 'Failed to generate or download CSV file' });
     }
 };
