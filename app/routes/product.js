@@ -39,9 +39,6 @@ module.exports = app => {
 
     router.get('/download/products', authJWT, adminAccess, products.generateAndDownloadCSV);
 
-
-
     app.use('/api', router);
-
 
 }
