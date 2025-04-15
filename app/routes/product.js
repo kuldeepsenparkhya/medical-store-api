@@ -24,20 +24,13 @@ module.exports = app => {
     router.get('/products/top/sale', products.getTopSellingProducts)
 
 
-    app.use('/api', router);
-
-
+    
     router.post('/products/verfy', authJWT, adminAccess, bulkFileUploadProduct, products.verifyUploadedCSVProducts)
-
-
-
+    
     // router.get('/download/report', products.downloadUploadReport);
-
+    
     router.get('/download/report/success', products.downloadSuccessReport);
     router.get('/download/report/error', products.downloadErrorReport);
-    router.get('/download/allProducts', products.triggerProductCSVExport);
-
     
-
-
+    app.use('/api', router);
 }
