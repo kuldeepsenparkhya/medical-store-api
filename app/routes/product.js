@@ -17,6 +17,7 @@ module.exports = app => {
     router.get('/all/deleted/products', products.getAllDeletedProducts)
 
     router.get('/products/:id', products.findOne)
+
     router.delete('/products/:id', authJWT, adminAccess, products.removeProduct)
 
     router.patch('/products/:id', authJWT, adminAccess, filesUploader, products.update)
@@ -24,20 +25,23 @@ module.exports = app => {
     router.get('/products/top/sale', products.getTopSellingProducts)
 
 
-    app.use('/api', router);
 
 
-    router.post('/products/verfy', authJWT, adminAccess, bulkFileUploadProduct, products.verifyUploadedCSVProducts)
+    router.post('/products/verfy', authJWT, adminAccess, bulkFileUploadProduct, products.verifyUploadedCSVProducts);
 
 
 
     // router.get('/download/report', products.downloadUploadReport);
 
-    router.get('/download/report/success', products.downloadSuccessReport);
-    router.get('/download/report/error', products.downloadErrorReport);
-    router.get('/download/allProducts', products.triggerProductCSVExport);
+    router.get('/download/report/success', authJWT, adminAccess,products.downloadSuccessReport);
 
-    
+    router.get('/download/report/error',authJWT, adminAccess, products.downloadErrorReport);
+
+    router.get('/download/products', authJWT, adminAccess, products.generateAndDownloadCSV);
+
+
+
+    app.use('/api', router);
 
 
 }

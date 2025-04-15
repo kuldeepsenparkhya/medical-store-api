@@ -7,12 +7,12 @@ const path = require('path'); // Import the path module
 const puppeteer = require('puppeteer');
 const Handlebars = require('handlebars');
 const { Parser } = require('json2csv');
-
+const { createObjectCsvWriter } = require('csv-writer');
 const { SMPT_EMAIL_HOST, SMPT_EMAIL_PORT, SMPT_EMAIL_USER, SMPT_EMAIL_PASSWORD, SMPT_EMAIL_FROM } = require('../config/config');
 // const { Product } = require('../modals');
 const moment = require('moment');
 const { log } = require('console');
-const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct,HealthCategory,Variant } = require("../modals");
+const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct, HealthCategory, Variant } = require("../modals");
 
 
 exports.handleResponse = (res, data, message, status = 200) => res.status(status).json({ ...data, error: false, message: message });
@@ -590,63 +590,90 @@ exports.orderNotifiationEmail = async (name, orderID, orderItems, subTotal, ship
     return message
 }
 
+/*
+exports.generateProductsCSV = async (products, filename = 'products_export.csv') => {
+    const reportsDir = path.join(__dirname, '../reports');
+    fs.mkdirSync(reportsDir, { recursive: true });
 
+    const filePath = path.join(reportsDir, filename);
 
+    const headers = [
+        { id: 'title', title: 'title' },
+        { id: 'sku', title: 'sku' },
+        { id: 'description', title: 'description' },
+        { id: 'consume_type', title: 'consume_type' },
+        { id: 'return_policy', title: 'return_policy' },
+        { id: 'expiry_date', title: 'expiry_date' },
+        { id: 'manufacturing_date', title: 'manufacturing_date' },
+        { id: 'sideEffects', title: 'sideEffects' },
+        { id: 'brand_name', title: 'brand_name' },
+        { id: 'product_category', title: 'product_category' },
+        { id: 'product_image', title: 'product_image' },
+        { id: 'product_brochure', title: 'product_brochure' },
+        { id: 'isRequirePrescription', title: 'isRequirePrescription' },
+        
+        // Variants (up to 3)
+        { id: 'v1_size', title: 'v1_size' },
+        { id: 'v1_color', title: 'v1_color' },
+        { id: 'v1_price', title: 'v1_price' },
+        { id: 'v1_quantity', title: 'v1_quantity' },
+        { id: 'v1_discount_name', title: 'v1_discount_name' },
 
+        { id: 'v2_size', title: 'v2_size' },
+        { id: 'v2_color', title: 'v2_color' },
+        { id: 'v2_price', title: 'v2_price' },
+        { id: 'v2_quantity', title: 'v2_quantity' },
+        { id: 'v2_discount_name', title: 'v2_discount_name' },
 
-// Function that handles CSV export
-async function exportProductsToCSV() {
-    const limit = 1000;
-    let page = 0;
-    let exportedCount = 0;
-    const EXPORT_FOLDER = path.join(__dirname, '../reports');
+        { id: 'v3_size', title: 'v3_size' },
+        { id: 'v3_color', title: 'v3_color' },
+        { id: 'v3_price', title: 'v3_price' },
+        { id: 'v3_quantity', title: 'v3_quantity' },
+        { id: 'v3_discount_name', title: 'v3_discount_name' }
+    ];
 
-    while (true) {
-        const skip = page * limit;
-        const products = await fetchProducts(skip, limit);
-        if (products.length === 0) break;
+    const records = await Promise.all(products.map(async p => {
+        const variant = p.variant || [];
 
-        const csvData = convertToCSV(products);
-        const filePath = path.join(EXPORT_FOLDER, `product_export_page_${page + 1}.csv`);
-        fs.writeFileSync(filePath, csvData);
-        exportedCount += products.length;
-        page++;
-    }
+        return {
+            title: p.title || '',
+            sku: p.sku || '',
+            description: p.description || '',
+            consume_type: p.consume_type || '',
+            return_policy: p.return_policy || '',
+            expiry_date: p.expiry_date || '',
+            manufacturing_date: p.manufacturing_date || '',
+            sideEffects: (p.sideEffects || []).join(', '),
+            brand_name: p.brand?.name || '',
+            product_category: p.productCategory?.name || '',
+            product_image: (p.mediaFiles || []).map(img => img.url).join(' | ') || '',
+            product_brochure: p.brochures?.[0]?.url || '',
+            isRequirePrescription: p.isRequirePrescription ? 'Yes' : 'No',
 
-    return `${exportedCount} products exported to CSV in ${page} file(s).`;
-}
+            v1_size: variant[0]?.size || '',
+            v1_color: variant[0]?.color || '',
+            v1_price: variant[0]?.price || '',
+            v1_quantity: variant[0]?.quantity || '',
+            v1_discount_name: variant[0]?.discount?.name || '',
 
-// Fetch Products (used within exportProductsToCSV)
-async function fetchProducts(skip = 0, limit = 1000) {
-    try {
-        return await Product.find({ isDeleted: false })
-            .populate('brand_id product_category_id health_category_id')
-            .populate({ path: 'variant', strictPopulate: false, populate: { path: 'discounted_id' } })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-    } catch (error) {
-        console.error('Error fetching products:', error);
-        throw new Error('Unable to fetch products from database.');
-    }
-}
+            v2_size: variant[1]?.size || '',
+            v2_color: variant[1]?.color || '',
+            v2_price: variant[1]?.price || '',
+            v2_quantity: variant[1]?.quantity || '',
+            v2_discount_name: variant[1]?.discount?.name || '',
 
-function convertToCSV(products) {
-    const flatData = products.map(product => ({
-        id: product._id,
-        title: product.title,
-        sku: product.sku,
-        description: product.description,
-        price: product.price,
-        brand: product.brand_id?.name || '',
-        category: product.product_category_id?.name || '',
-        healthCategory: product.health_category_id?.name || '',
-        createdAt: product.createdAt,
+            v3_size: variant[2]?.size || '',
+            v3_color: variant[2]?.color || '',
+            v3_price: variant[2]?.price || '',
+            v3_quantity: variant[2]?.quantity || '',
+            v3_discount_name: variant[2]?.discount?.name || ''
+        };
     }));
 
-    const parser = new Parser();
-    return parser.parse(flatData);
-}
+    const csvWriter = createObjectCsvWriter({ path: filePath, header: headers });
 
-module.exports = { exportProductsToCSV }; 
+    await csvWriter.writeRecords(records); 
 
+    return filePath;
+};
+*/
