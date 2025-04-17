@@ -4,12 +4,8 @@ const { adminAccess, authJWT } = require('../middlewares/auth');
 const { filesUploader, bulkFileUploadProduct } = require('../middlewares/fileUpload');
 
 module.exports = app => {
-
     router.post('/products', authJWT, adminAccess, filesUploader, products.create)
-
     router.post('/products/bulk/insert', authJWT, adminAccess, bulkFileUploadProduct, products.createBulkProducts)
-
-
     router.get('/products/minimum/discounted', products.getMinimumDiscountedProducts)
 
     router.get('/products', products.find)
@@ -24,12 +20,7 @@ module.exports = app => {
 
     router.get('/products/top/sale', products.getTopSellingProducts)
 
-
-
-
     router.post('/products/verfy', authJWT, adminAccess, bulkFileUploadProduct, products.verifyUploadedCSVProducts);
-
-
 
     // router.get('/download/report', products.downloadUploadReport);
 

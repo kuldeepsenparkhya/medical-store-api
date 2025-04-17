@@ -9,6 +9,12 @@ const csv = require('csv-parser'); // Make sure to install and require the 'csv-
 const AsyncLock = require("async-lock");
 const fastCsv = require('fast-csv');
 const { Parser } = require("json2csv");
+const { createObjectCsvStringifier } = require('csv-writer');
+
+
+
+
+
 
 
 exports.create = async (req, res) => {
@@ -1539,18 +1545,16 @@ exports.verifyUploadedCSVProducts = async (req, res) => {
     }
 };
 
+
 exports.generateAndDownloadCSV = async (req, res) => {
     try {
         let { start = 0, end = 1000 } = req.query;
         start = parseInt(start);
         end = parseInt(end);
-
         if (isNaN(start) || isNaN(end) || start < 0 || end <= start) {
             return res.status(400).json({ error: true, message: 'Invalid range parameters' });
         }
-
         const limit = end - start;
-
         const products = await Product.aggregate([
             { $match: { isDeleted: false } },
             { $sort: { createdAt: 1 } },
@@ -1608,7 +1612,6 @@ exports.generateAndDownloadCSV = async (req, res) => {
             { $unwind: { path: '$productCategory', preserveNullAndEmptyArrays: true } },
             { $unwind: { path: '$healthCategory', preserveNullAndEmptyArrays: true } }
         ]);
-
         const csvStringifier = createObjectCsvStringifier({
             header: [
                 { id: 'title', title: 'title' },
@@ -1641,10 +1644,8 @@ exports.generateAndDownloadCSV = async (req, res) => {
                 { id: 'v3_discount_name', title: 'v3_discount_name' }
             ]
         });
-
         const records = await Promise.all(products.map(async (p) => {
             const variant = p.variant || [];
-
             const discountNames = await Promise.all(variant.map(async (v) => {
                 if (v.discounted_id) {
                     const discount = await Discount.findById(v.discounted_id);
@@ -1652,7 +1653,6 @@ exports.generateAndDownloadCSV = async (req, res) => {
                 }
                 return '';
             }));
-
             return {
                 title: p.title || '',
                 sku: p.sku || '',
@@ -1667,19 +1667,16 @@ exports.generateAndDownloadCSV = async (req, res) => {
                 product_image: (p.mediaFiles || []).map(img => img.url).join(' | ') || '',
                 product_brochure: p.brochures?.[0]?.url || '',
                 isRequirePrescription: p.isRequirePrescription ? 'true' : 'false',
-
                 v1_size: variant[0]?.size || '',
                 v1_color: variant[0]?.color || '',
                 v1_price: variant[0]?.price || '',
                 v1_quantity: variant[0]?.quantity || '',
                 v1_discount_name: discountNames[0] || '',
-
                 v2_size: variant[1]?.size || '',
                 v2_color: variant[1]?.color || '',
                 v2_price: variant[1]?.price || '',
                 v2_quantity: variant[1]?.quantity || '',
                 v2_discount_name: discountNames[1] || '',
-
                 v3_size: variant[2]?.size || '',
                 v3_color: variant[2]?.color || '',
                 v3_price: variant[2]?.price || '',
@@ -1687,16 +1684,13 @@ exports.generateAndDownloadCSV = async (req, res) => {
                 v3_discount_name: discountNames[2] || ''
             };
         }));
-
         // Set headers and stream to browser
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename="products_export.csv"');
-
         // Write CSV to response stream
         res.write(csvStringifier.getHeaderString());
         res.write(csvStringifier.stringifyRecords(records));
         res.end();
-
     } catch (err) {
         console.error('CSV generation and download error:', err);
         res.status(500).json({ error: true, message: 'Failed to generate or download CSV file' });
