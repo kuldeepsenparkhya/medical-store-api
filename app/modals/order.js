@@ -26,7 +26,8 @@ const orderSchema = Schema({
         },
         media_id: {
             type: mongoose.Schema.Types.ObjectId,
-            required: true,
+            // required: true,
+            default: null,
             ref: 'Media'
         },
         discount_id: {

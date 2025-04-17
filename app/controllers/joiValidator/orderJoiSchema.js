@@ -11,7 +11,7 @@ const orderVailidationSchema = Joi.object({
 
     products: Joi.array().items(Joi.object({
         product_id: Joi.string().required(),
-        media_id: Joi.string().required(),
+        media_id: Joi.string().allow(null).optional(),
         product_variant_id: Joi.string().required(),
         price: Joi.number().min(0).required(),
         quantity: Joi.number().min(1).required(),
