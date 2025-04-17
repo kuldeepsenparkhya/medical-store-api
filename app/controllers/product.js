@@ -1,7 +1,6 @@
 const { handleError, handleResponse, getPagination, getProducts, generateProductsCSV } = require("../utils/helper");
 const { Product, Media, ProductVariant, Brochure, Order, Inventory, Discount, Brand, ProductCategory, ComboProduct } = require("../modals");
 const { exportProductsToCSV } = require('../utils/helper');
-const { createObjectCsvStringifier } = require('csv-writer');
 const fs = require('fs')
 const path = require("path");
 const { isValidObjectId } = require("mongoose");
