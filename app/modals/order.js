@@ -82,7 +82,7 @@ const orderSchema = Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'UserVollet',
         default: null,
-        required: false,
+        set: value => (value === 'null' || value === '' ? null : value)
     },
     loyality_coins: {
         type: Number

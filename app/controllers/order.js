@@ -297,6 +297,7 @@ const { isValidObjectId, default: mongoose } = require("mongoose");
 //     handleError(error.message, 400, res);
 //   }
 // };
+
 exports.create = async (req, res) => {
   try {
     const { products, address_id, shipping_charge, order_type, user_wallet_id, } = req.body;
@@ -349,7 +350,11 @@ exports.create = async (req, res) => {
     let getCoinAmountValue = 0;
 
     // Check for valid user_wallet_id
-    const userWallet = await UserWallet.findOne({ _id: user_wallet_id });
+    let userWallet = null;
+
+    if (user_wallet_id && isValidObjectId(user_wallet_id)) {
+      userWallet = await UserWallet.findOne({ _id: user_wallet_id });
+    }
 
     const getCoin = await Coin.findOne({});
 
@@ -359,8 +364,8 @@ exports.create = async (req, res) => {
     }
 
     // Extract the coin values
-    const pointsPerCoin = getCoin?.coins || 0;  // Default to 0 if invalid
-    const rupeesPerCoin = getCoin?.coins_amount || 0;  // Default to 0 if invalid
+    const pointsPerCoin = getCoin?.coins ? getCoin?.coins : 0;  // Default to 0 if invalid
+    const rupeesPerCoin = getCoin?.coins_amount ? getCoin?.coins_amount : 0;  // Default to 0 if invalid
 
     // Ensure pointsPerCoin is not 0 to avoid division by zero
     if (pointsPerCoin === 0) {
@@ -372,7 +377,7 @@ exports.create = async (req, res) => {
     const valuePerPoint = rupeesPerCoin / pointsPerCoin;
 
     // Total points in the user's wallet
-    const totalPoints = userWallet?.coins || 0;  // Default to 0 if no points
+    const totalPoints = userWallet.coins ? userWallet.coins : 0;  // Default to 0 if no points
 
     console.log(`userWallet coins: ${userWallet?.coins}, valuePerPoint: ${valuePerPoint}`);
 
@@ -1650,7 +1655,7 @@ exports.getAllPayments = async (req, res) => {
     //   currency: item.currency,
     // }));
 
-    res.send(payments );
+    res.send(payments);
 
     // res.json({
     //     status: payment.status,
