@@ -308,6 +308,10 @@ exports.create = async (req, res) => {
       return;
     }
 
+
+
+
+
     let prescription_url = req.file ? `${process.env.BASE_URL}/media/${req?.file?.filename}` : "";
     const requirePrescription = [];
 
@@ -352,7 +356,8 @@ exports.create = async (req, res) => {
     // Check for valid user_wallet_id
     let userWallet = null;
 
-    if (user_wallet_id && isValidObjectId(user_wallet_id)) {
+    if (user_wallet_id !== null && user_wallet_id && isValidObjectId(user_wallet_id)) {
+      console.log('asdddddddddddd', user_wallet_id);
       userWallet = await UserWallet.findOne({ _id: user_wallet_id });
     }
 
@@ -385,7 +390,10 @@ exports.create = async (req, res) => {
     getCoinAmountValue = totalPoints * valuePerPoint;
 
     // Reset user wallet coins after using them
-    await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
+
+    if (user_wallet_id !== "null" && user_wallet_id !== null && user_wallet_id !== '') {
+      await UserWallet.updateOne({ _id: user_wallet_id }, { coins: 0 }, { new: true });
+    }
 
     // Inventory check for out-of-stock variants
     const outOfStockVariants = [];

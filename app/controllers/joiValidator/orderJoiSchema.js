@@ -6,7 +6,7 @@ const orderVailidationSchema = Joi.object({
     shipping_charge: Joi.number().min(0).required(),
     order_type: Joi.string().required(),
     coupon_code: Joi.string().allow(null).optional(),
-    user_wallet_id: Joi.string().allow(null).optional(),
+    user_wallet_id: Joi.string().allow('', null).optional(),
 
 
     products: Joi.array().items(Joi.object({
