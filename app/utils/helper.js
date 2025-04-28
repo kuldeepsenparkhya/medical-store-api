@@ -483,20 +483,20 @@ exports.orderConfirmationMail = async (name, orderID, orderItems, subTotal, ship
                 <tr>
                     <td style="border:1px solid #ddd; padding:8px;">${item.itemName}</td>
                     <td style="border:1px solid #ddd; padding:8px;">${item.quantity}</td>
-                    <td style="border:1px solid #ddd; padding:8px;">$${item.price}</td>
+                    <td style="border:1px solid #ddd; padding:8px;">₹${item.price}</td>
                 </tr>
                 `).join('')}
             </tbody>
             </table>
 
-            <p style="margin-top:20px;">Subtotal: <strong>$${subTotal}</strong></p>
-            <p>Shipping: <strong>$${shipping_charge}</strong></p>
-            <p>Total: <strong>$${grandTotal}</strong></p>
+            <p style="margin-top:20px;">Subtotal: <strong>₹${subTotal}</strong></p>
+            <p>Shipping: <strong>₹${shipping_charge}</strong></p>
+            <p>Total: <strong>₹${grandTotal}</strong></p>
 
             <p>We will notify you once your order is on its way. You can check the status of your order at any time by logging into your account.</p>
 
             <p style="font-size:0.9em;">Thank you for shopping with us!</p>
-            <p style="font-size:0.9em;">Best Regards,<br />Your Company Name</p>
+            <p style="font-size:0.9em;">Best Regards,<br />Welljanhitchemist</p>
 
             <hr style="border:none; border-top:1px solid #eee" />
             <p style="font-size:0.8em; color:#999;">If you have any questions, feel free to reply to this email or contact our support team at support@example.com.</p>
